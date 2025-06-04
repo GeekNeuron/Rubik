@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rubik's Cube Challenge</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>Rubik's Cube Challenge</h1>
+        <div class="scoreboard">
+            <div>Score: <span id="score">0</span></div>
+            <div>Best Score: <span id="bestScore">0</span></div>
+        </div>
+    </div>
+    <div class="container">
+        <canvas id="cubeCanvas" width="400" height="400"></canvas>
+    </div>
+    <div class="controls">
+        <button onclick="resetGame()">New Game</button>
+        <div id="timer">Time: 00:00</div>
+        <div id="moveCounter">Moves: 0</div>
+    </div>
+    <div id="gameOverModal" class="modal">
+        <h2>Game Over!</h2>
+        <p>Your Score: <span id="finalScore"></span></p>
+        <button onclick="resetGame()">Play Again</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
