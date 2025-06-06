@@ -1,4 +1,3 @@
-// address: https://app.unpkg.com/three@0.177.0/files/build/three.module.js
 /**
  * @license
  * Copyright 2010-2025 Three.js Authors
