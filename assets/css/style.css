@@ -12,14 +12,14 @@
     --modal-content-bg: #ffffff;
     --theme-switcher-icon-color: #212529;
 
-    /* Default Cube Colors (Official) */
-    --color-up: #ffffff;      /* White */
-    --color-down: #ffd500;    /* Yellow */
-    --color-front: #009e60;   /* Green */
-    --color-back: #0051ba;    /* Blue */
-    --color-left: #ff5800;    /* Orange */
-    --color-right: #c41e3a;   /* Red */
-    --color-inside: #333333;  /* Inner cubie color */
+    /* Default Cube Colors */
+    --color-up: #ffffff;
+    --color-down: #ffd500;
+    --color-front: #009e60;
+    --color-back: #0051ba;
+    --color-left: #ff5800;
+    --color-right: #c41e3a;
+    --color-inside: #333333;
 }
 
 body.dark-theme {
@@ -43,12 +43,12 @@ body {
     background-color: var(--body-bg);
     color: var(--text-color);
     margin: 0;
-    overflow: hidden; /* Prevent scrolling */
+    overflow: hidden;
     transition: background-color 0.3s ease, color 0.3s ease;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-end; /* Align controls to bottom */
+    justify-content: flex-end;
     height: 100vh;
 }
 
@@ -81,7 +81,7 @@ body {
 #theme-switcher:hover { background-color: rgba(128,128,128,0.2); }
 #theme-icon { stroke: var(--theme-switcher-icon-color); }
 
-/* --- Desktop Layout --- */
+/* Desktop Layout */
 .controls-panel {
     position: relative;
     z-index: 10;
@@ -109,10 +109,7 @@ body {
 }
 .timer-box:hover { background-color: rgba(128,128,128,0.1); }
 
-.buttons-group {
-    display: flex;
-    gap: 10px;
-}
+.buttons-group { display: flex; gap: 10px; }
 
 .btn {
     background-color: var(--button-bg);
@@ -129,7 +126,7 @@ body {
 .btn:hover { background-color: var(--button-hover-bg); transform: translateY(-2px); }
 .btn:active { transform: translateY(0); }
 
-/* Modal Styles (Shared) */
+/* Modal Styles */
 .modal {
     display: none;
     position: fixed;
@@ -160,7 +157,6 @@ body {
     font-weight: bold;
     cursor: pointer;
 }
-
 #history-list {
     list-style: none;
     padding: 0;
@@ -168,21 +164,13 @@ body {
     overflow-y: auto;
     text-align: left;
 }
-#history-list li {
-    padding: 8px;
-    border-bottom: 1px solid var(--panel-border);
-}
-
+#history-list li { padding: 8px; border-bottom: 1px solid var(--panel-border); }
 .color-settings {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 15px;
 }
-.color-input-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+.color-input-group { display: flex; align-items: center; gap: 8px; }
 .color-input-group label { font-size: 0.9em; }
 .color-input-group input[type="color"] {
     width: 40px;
@@ -201,52 +189,31 @@ footer {
     opacity: 0.7;
 }
 
-/* --- Mobile Layout (max-width: 768px) --- */
-/* This media query creates a different layout for mobile devices */
+/* Mobile Layout */
 @media (max-width: 768px) {
-    body {
-        /* Add padding at the bottom to prevent the fixed panel from overlapping the footer */
-        padding-bottom: 100px;
-    }
-
+    body { padding-bottom: 100px; }
     .controls-panel {
-        /* Convert the panel to a fixed bottom bar */
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        flex-direction: row; /* Arrange items horizontally */
-        justify-content: space-around; /* Space out items */
+        flex-direction: row;
+        justify-content: space-around;
         align-items: center;
         padding: 10px;
         margin-bottom: 0;
-        border-radius: 0; /* Full width, no corner radius */
+        border-radius: 0;
         border-top: 1px solid var(--panel-border);
         border-left: none;
         border-right: none;
         border-bottom: none;
     }
-
-    .timer-box {
-        font-size: 1.2em; /* Smaller timer font */
-        padding: 8px;
-        text-align: center;
-        flex-shrink: 0; /* Prevent timer from shrinking */
-    }
-    
-    .buttons-group {
-        gap: 8px; /* Reduce gap between buttons */
-    }
-
-    .btn {
-        padding: 10px 12px; /* Adjust button padding for touch */
-        font-size: 0.9em;
-    }
-
+    .timer-box { font-size: 1.2em; padding: 8px; text-align: center; flex-shrink: 0; }
+    .buttons-group { gap: 8px; }
+    .btn { padding: 10px 12px; font-size: 0.9em; }
     footer {
-        /* Place footer inside the safe area, just above the control panel */
         position: fixed;
-        bottom: 85px; /* Adjust based on control panel height */
+        bottom: 85px;
         width: 100%;
         text-align: center;
         font-size: 0.7em;
