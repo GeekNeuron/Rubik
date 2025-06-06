@@ -3,11 +3,21 @@ import * as THREE from 'three';
 const CUBIE_SIZE = 1;
 const SPACING = 0.05;
 let cubeGroup;
-// A flag to prevent new moves while a rotation animation is active
 export let isRotating = false; 
 
 /**
+ * A safer way to get CSS colors.
+ * If a color is not found, it returns a bright pink for easy debugging.
+ * THIS FUNCTION IS UPDATED.
+ */
+function getCssColor(varName) {
+    const color = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    return color || '#FF00FF'; // Returns pink if the variable is not found
+}
+
+/**
  * Creates a single small cube (a "cubie").
+ * This function now uses the safer getCssColor.
  */
 function createCubie(x, y, z) {
     const geometry = new THREE.BoxGeometry(CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE);
@@ -20,15 +30,14 @@ function createCubie(x, y, z) {
         new THREE.MeshLambertMaterial({ color: getCssColor('--color-back') }),
     ];
     const insideColor = getCssColor('--color-inside');
-    if (x !== 1) materials[0].color.set(insideColor);
-    if (x !== -1) materials[1].color.set(insideColor);
-    if (y !== 1) materials[2].color.set(insideColor);
-    if (y !== -1) materials[3].color.set(insideColor);
-    if (z !== 1) materials[4].color.set(insideColor);
-    if (z !== -1) materials[5].color.set(insideColor);
+    if (x !== 1) materials[0].color.set(new THREE.Color(insideColor));
+    if (x !== -1) materials[1].color.set(new THREE.Color(insideColor));
+    if (y !== 1) materials[2].color.set(new THREE.Color(insideColor));
+    if (y !== -1) materials[3].color.set(new THREE.Color(insideColor));
+    if (z !== 1) materials[4].color.set(new THREE.Color(insideColor));
+    if (z !== -1) materials[5].color.set(new THREE.Color(insideColor));
 
     const cubie = new THREE.Mesh(geometry, materials);
-    // Store original position in an attribute for easy identification
     cubie.userData.originalPosition = new THREE.Vector3(x, y, z);
     cubie.position.set(
         x * (CUBIE_SIZE + SPACING),
@@ -38,9 +47,6 @@ function createCubie(x, y, z) {
     return cubie;
 }
 
-/**
- * Creates the entire 3x3x3 Rubik's Cube group.
- */
 export function createRubiksCube() {
     cubeGroup = new THREE.Group();
     cubeGroup.name = "RubiksCube";
@@ -57,19 +63,11 @@ export function createRubiksCube() {
     return cubeGroup;
 }
 
-
-// --- START: New Rotation Logic ---
+// --- Rotation Logic ---
 
 const pivot = new THREE.Group();
 let activeCubies = [];
 
-/**
- * The main function to rotate a face of the cube.
- * @param {THREE.Object3D} clickedObject - The cubie that was clicked.
- * @param {string} dragDirection - The direction of the drag ('UP', 'DOWN', 'LEFT', 'RIGHT').
- * @param {THREE.Scene} scene - The main scene object.
- * @param {Function} onRotationComplete - Callback to run when animation finishes.
- */
 export function rotateFace(clickedObject, dragDirection, scene, onRotationComplete) {
     if (isRotating) return;
     isRotating = true;
@@ -77,44 +75,46 @@ export function rotateFace(clickedObject, dragDirection, scene, onRotationComple
     const faceNormal = clickedObject.face.normal;
     const clickedCubie = clickedObject.object;
     
-    // Determine the rotation axis and direction
     const rotation = getRotationAxisAndDirection(faceNormal, clickedCubie.position, dragDirection);
     if (!rotation) {
         isRotating = false;
         return;
     }
     
-    // Select the 9 cubies that belong to the face
     activeCubies = getCubiesOnFace(rotation.axis, clickedCubie.position);
 
-    // Use a pivot for smooth rotation
     scene.add(pivot);
-    pivot.rotation.set(0, 0, 0); // Reset pivot rotation
+    pivot.rotation.set(0, 0, 0);
     activeCubies.forEach(cubie => {
         pivot.attach(cubie);
     });
     
-    // Animate the rotation
     animateRotation(pivot, rotation.axis, rotation.angle, onRotationComplete);
 }
 
 
+/**
+ * Animates the rotation of a pivot group.
+ * THIS FUNCTION IS UPDATED.
+ */
 function animateRotation(target, axis, angle, onComplete) {
     const startRotation = new THREE.Euler().copy(target.rotation);
-    const endRotation = new THREE.Euler().copy(startRotation).add(new THREE.Euler(
-        axis.x * angle,
-        axis.y * angle,
-        axis.z * angle
-    ));
+    // highlight-start
+    // The .add() method is deprecated. We calculate the end rotation directly.
+    const endRotation = new THREE.Euler(
+        startRotation.x + (axis.x * angle),
+        startRotation.y + (axis.y * angle),
+        startRotation.z + (axis.z * angle)
+    );
+    // highlight-end
     
-    const duration = 300; // 300ms animation
+    const duration = 300;
     let startTime = null;
 
     function step(timestamp) {
         if (!startTime) startTime = timestamp;
         const progress = Math.min((timestamp - startTime) / duration, 1);
         
-        // Linear interpolation (lerp) for rotation
         target.rotation.set(
             THREE.MathUtils.lerp(startRotation.x, endRotation.x, progress),
             THREE.MathUtils.lerp(startRotation.y, endRotation.y, progress),
@@ -124,10 +124,9 @@ function animateRotation(target, axis, angle, onComplete) {
         if (progress < 1) {
             requestAnimationFrame(step);
         } else {
-            // Animation complete, re-parent the cubies
             while(pivot.children.length > 0) {
                 const cubie = pivot.children[0];
-                cubeGroup.attach(cubie); // This preserves the new world position/rotation
+                cubeGroup.attach(cubie);
             }
             scene.remove(pivot);
             isRotating = false;
@@ -138,66 +137,61 @@ function animateRotation(target, axis, angle, onComplete) {
 }
 
 
-/**
- * Determines which cubies are on the face to be rotated.
- * @param {string} axis - 'x', 'y', or 'z'.
- * @param {THREE.Vector3} position - The position of the clicked cubie.
- * @returns {Array<THREE.Object3D>}
- */
-function getCubiesOnFace(axis, position) {
+function getCubiesOnFace(axisName, position) {
     const cubies = [];
-    const threshold = 0.5; // To account for floating point inaccuracies
+    const threshold = 0.5;
     
     cubeGroup.children.forEach(cubie => {
-        if (Math.abs(cubie.position[axis] - position[axis]) < threshold) {
+        if (Math.abs(cubie.position[axisName] - position[axisName]) < threshold) {
             cubies.push(cubie);
         }
     });
     return cubies;
 }
 
-/**
- * A complex mapping to determine rotation axis and angle.
- * This is the "brain" of the move logic.
- * @returns {{axis: THREE.Vector3, angle: number}}
- */
 function getRotationAxisAndDirection(faceNormal, position, dragDirection) {
     const axis = new THREE.Vector3();
-    let angle = Math.PI / 2; // 90 degrees
+    let axisName = '';
+    let angle = Math.PI / 2;
 
-    // Example: Clicked the front face (normal facing camera)
-    if (faceNormal.z > 0.9) { 
-        if (dragDirection === 'UP' || dragDirection === 'DOWN') axis.set(1, 0, 0); // Rotate around X-axis
-        if (dragDirection === 'LEFT' || dragDirection === 'RIGHT') axis.set(0, 1, 0); // Rotate around Y-axis
+    const roundedNormal = new THREE.Vector3(Math.round(faceNormal.x), Math.round(faceNormal.y), Math.round(faceNormal.z));
+
+    if (roundedNormal.z === 1) { // Front face
+        axisName = 'z';
+        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0, 0);
         if (dragDirection === 'UP' || dragDirection === 'LEFT') angle *= -1;
-    } 
-    // Example: Clicked the top face (normal facing up)
-    else if (faceNormal.y > 0.9) {
-        if (dragDirection === 'UP' || dragDirection === 'DOWN') axis.set(1, 0, 0); // Rotate around X-axis
-        if (dragDirection === 'LEFT' || dragDirection === 'RIGHT') axis.set(0, 0, 1); // Rotate around Z-axis
-        if (dragDirection === 'DOWN' || dragDirection === 'RIGHT') angle *= -1;
-    }
-    // Example: Clicked the right-side face
-    else if (faceNormal.x > 0.9) {
-        if (dragDirection === 'UP' || dragDirection === 'DOWN') axis.set(0, 0, 1); // Rotate around Z-axis
-        if (dragDirection === 'LEFT' || dragDirection === 'RIGHT') axis.set(0, 1, 0); // Rotate around Y-axis
+    } else if (roundedNormal.z === -1) { // Back face
+        axisName = 'z';
+        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0, 0);
         if (dragDirection === 'UP' || dragDirection === 'RIGHT') angle *= -1;
-    }
-    // Other faces would need similar logic...
-    else {
-        // For simplicity, we only implement 3 faces for now.
-        // The other faces (back, bottom, left) work by rotating the camera.
-        console.warn("Rotation logic for this face is not fully implemented yet.");
+    } else if (roundedNormal.y === 1) { // Top face
+        axisName = 'y';
+        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0);
+        if (dragDirection === 'DOWN' || dragDirection === 'RIGHT') angle *= -1;
+    } else if (roundedNormal.y === -1) { // Bottom face
+        axisName = 'y';
+        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0);
+        if (dragDirection === 'UP' || dragDirection === 'LEFT') angle *= -1;
+    } else if (roundedNormal.x === 1) { // Right face
+        axisName = 'x';
+        axis.set(0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0, dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0);
+        if (dragDirection === 'UP' || dragDirection === 'RIGHT') angle *= -1;
+    } else if (roundedNormal.x === -1) { // Left face
+        axisName = 'x';
+        axis.set(0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0, dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0);
+        if (dragDirection === 'DOWN' || dragDirection === 'RIGHT') angle *= -1;
+    } else {
         return null;
     }
     
-    return { axis, angle };
+    // Correct axis based on clicked face
+    if(axisName === 'z') axis.y *= -1;
+    if(axisName === 'x') axis.y *= -1;
+
+    return { axis, axisName, angle };
 }
 
-// --- END: New Rotation Logic ---
-
-// --- Unchanged Functions ---
+// Unchanged Functions
 export function scrambleCube() { /* ... */ }
 export function solveCube() { /* ... */ }
 export function updateCubeColors() { /* ... */ }
-function getCssColor(varName) { /* ... */ }
