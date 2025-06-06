@@ -1,4 +1,5 @@
-import * as THREE from '../../libs/three.min.js';
+// These two lines have been modified to point to the local files in the libs folder
+import * as THREE from '../../libs/three.module.js';
 import { OrbitControls } from '../../libs/OrbitControls.js';
 
 let scene, camera, renderer, controls;
