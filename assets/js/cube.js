@@ -4,7 +4,13 @@ const CUBIE_SIZE = 1;
 const SPACING = 0.05;
 let cubeGroup;
 
-// Function to create a single cubie
+/**
+ * Creates a single small cube (a "cubie").
+ * @param {number} x - The x-coordinate of the cubie.
+ * @param {number} y - The y-coordinate of the cubie.
+ * @param {number} z - The z-coordinate of the cubie.
+ * @returns {THREE.Mesh} The created cubie mesh.
+ */
 function createCubie(x, y, z) {
     const geometry = new THREE.BoxGeometry(CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE);
     const materials = [
@@ -32,16 +38,19 @@ function createCubie(x, y, z) {
     return cubie;
 }
 
+/**
+ * Creates the entire 3x3x3 Rubik's Cube group.
+ * @returns {THREE.Group} The group containing all 26 cubies.
+ */
 export function createRubiksCube() {
     cubeGroup = new THREE.Group();
-    // highlight-start
-    cubeGroup.name = "RubiksCube"; // Add this line
-    // highlight-end
+    // Name the group so we can easily find it in the scene later
+    cubeGroup.name = "RubiksCube";
     
     for (let x = -1; x <= 1; x++) {
         for (let y = -1; y <= 1; y++) {
             for (let z = -1; z <= 1; z++) {
-                if (x === 0 && y === 0 && z === 0) continue;
+                if (x === 0 && y === 0 && z === 0) continue; // Skip the center piece
                 const cubie = createCubie(x, y, z);
                 cubeGroup.add(cubie);
             }
