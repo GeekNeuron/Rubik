@@ -47,17 +47,17 @@ export function createRubiksCube() {
 
 export function scrambleCube() {
     console.log("Scrambling the cube...");
-    alert("Scramble feature is not yet implemented.");
+    alert("ویژگی 'بُر زدن' هنوز پیاده‌سازی نشده است.");
 }
 
 export function solveCube() {
     console.log("Solving the cube...");
-    alert("Solve feature is not yet implemented.");
+    alert("ویژگی 'حل کردن' هنوز پیاده‌سازی نشده است.");
 }
 
 export function updateCubeColors() {
     if (!cubeGroup) return;
-    alert("The cube must be rebuilt for colors to apply. Please refresh the page.");
+    alert("مکعب باید دوباره ساخته شود تا رنگ‌ها اعمال شوند. لطفاً صفحه را رفرش کنید.");
 }
 
 function getCssColor(varName) {
