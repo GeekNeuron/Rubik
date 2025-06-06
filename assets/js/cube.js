@@ -1,4 +1,5 @@
-import * as THREE from '../../libs/three.min.js';
+// This line has been modified to point to the local file in the libs folder
+import * as THREE from '../../libs/three.module.js';
 
 const CUBIE_SIZE = 1;
 const SPACING = 0.05;
@@ -19,7 +20,7 @@ function createCubie(x, y, z) {
         new THREE.MeshLambertMaterial({ color: getCssColor('--color-back') }),    // Back
     ];
 
-    // Color the inside faces black (or the defined inside color)
+    // Color the inside faces
     const insideColor = getCssColor('--color-inside');
     if (x !== 1) materials[0].color.set(insideColor); // Right face
     if (x !== -1) materials[1].color.set(insideColor); // Left face
@@ -54,21 +55,22 @@ export function createRubiksCube() {
 
 export function scrambleCube() {
     console.log("Scrambling the cube...");
-    // TODO: Implement the scramble logic
+    // TODO: Implement scramble logic
     alert("Scramble feature is not yet implemented.");
 }
 
 export function solveCube() {
     console.log("Solving the cube...");
-    // TODO: Implement the solve logic (or reset to initial state)
+    // TODO: Implement solve logic
     alert("Solve feature is not yet implemented.");
 }
 
 export function updateCubeColors() {
     if (!cubeGroup) return;
-    // TODO: A more efficient way would be to update materials, but for now this is a simple placeholder.
+    // TODO: Implement logic to update colors after changing in the settings menu
     alert("The cube must be rebuilt for colors to apply. Please refresh the page.");
 }
+
 
 // Helper utility to read color from CSS variables
 function getCssColor(varName) {
