@@ -104,3 +104,4 @@ export function initInteraction() {
     const domElement = renderer.domElement;
     domElement.addEventListener('pointerdown', onPointerDown, false);
 }
+
