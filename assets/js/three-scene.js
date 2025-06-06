@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
+// Import the new functions from cube.js
+import { rotateFace, isRotating } from '../../assets/js/cube.js';
 
 // Global variables for the scene
 let scene, camera, renderer, controls;
@@ -14,9 +16,9 @@ let intersectedObject = null; // To store the object that was initially clicked
 
 /**
  * Initializes the main 3D scene, camera, lights, and renderer.
+ * @returns {THREE.Scene} The initialized scene object.
  */
 export function initScene() {
-    // ... (This function remains unchanged)
     scene = new THREE.Scene();
     scene.background = new THREE.Color(getComputedStyle(document.body).getPropertyValue('--body-bg').trim());
 
@@ -64,39 +66,37 @@ export function initScene() {
  * Updates the scene's background color when the theme changes.
  */
 export function updateBackgroundColor() {
-    // ... (This function remains unchanged)
     if (scene) {
         scene.background.set(getComputedStyle(document.body).getPropertyValue('--body-bg').trim());
     }
 }
 
-// --- START: Interaction Logic (Updated Section) ---
+// --- Interaction Logic ---
 
 /**
  * Handles pointer down events (mouse click or touch start).
  * This function starts a "drag session".
  */
 function onPointerDown(event) {
+    // Prevent starting a new drag if a rotation is already happening
+    if (isRotating) return;
+
     const canvasBounds = renderer.domElement.getBoundingClientRect();
     pointer.x = ((event.clientX - canvasBounds.left) / canvasBounds.width) * 2 - 1;
     pointer.y = -((event.clientY - canvasBounds.top) / canvasBounds.height) * 2 + 1;
 
     raycaster.setFromCamera(pointer, camera);
-
     const cube = scene.getObjectByName("RubiksCube");
     if (!cube) return;
 
     const intersects = raycaster.intersectObjects(cube.children);
-
     if (intersects.length > 0) {
-        // A cubie was clicked, so start dragging.
         isDragging = true;
         intersectedObject = intersects[0]; // Store the clicked object and face
         startPoint.set(event.clientX, event.clientY); // Store the starting screen coordinates
         
-        // IMPORTANT: Disable camera controls so the camera doesn't move while we drag.
+        // Disable camera controls so the camera doesn't move while we drag.
         controls.enabled = false; 
-        console.log("Drag Started on face with normal:", intersectedObject.face.normal);
     }
 }
 
@@ -114,7 +114,7 @@ function onPointerMove(event) {
 
 /**
  * Handles pointer up events (mouse release or touch end).
- * This function ends the "drag session" and determines the final action.
+ * This function ends the "drag session" and triggers the rotation.
  */
 function onPointerUp(event) {
     if (!isDragging) return;
@@ -131,26 +131,26 @@ function onPointerUp(event) {
             dragDirection = moveDirection.y > 0 ? 'DOWN' : 'UP';
         }
         
-        console.log(`Drag Ended. Direction: ${dragDirection}`);
+        // Call the actual rotation function from cube.js
+        rotateFace(intersectedObject, dragDirection, scene, () => {
+            // This is a callback function that runs after the rotation animation is complete.
+            // We re-enable camera controls here to ensure smooth operation.
+            controls.enabled = true;
+        });
         
-        // In the next step, we will call the function to actually rotate the face here.
-        // For example: rotateFace(intersectedObject, dragDirection);
     } else {
-        console.log("Drag was too short, cancelled.");
+        // If drag was too short, just re-enable controls.
+        controls.enabled = true;
     }
 
-    // End the drag session and clean up
+    // Cleanup for the next interaction
     isDragging = false;
     intersectedObject = null;
     moveDirection.set(0,0);
-    
-    // IMPORTANT: Re-enable camera controls.
-    controls.enabled = true; 
 }
 
 /**
  * Initializes all interaction event listeners for the scene.
- * This is an updated function that now includes move and up events.
  */
 export function initInteraction() {
     const domElement = renderer.domElement;
