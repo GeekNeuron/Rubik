@@ -34,6 +34,10 @@ function createCubie(x, y, z) {
 
 export function createRubiksCube() {
     cubeGroup = new THREE.Group();
+    // highlight-start
+    cubeGroup.name = "RubiksCube"; // Add this line
+    // highlight-end
+    
     for (let x = -1; x <= 1; x++) {
         for (let y = -1; y <= 1; y++) {
             for (let z = -1; z <= 1; z++) {
