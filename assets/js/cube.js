@@ -8,17 +8,11 @@ export let isRotating = false;
 
 /**
  * Creates a single small cube (a "cubie").
- * This version has been fixed to prevent the 'color is undefined' error.
- * @param {number} x - The x-coordinate of the cubie.
- * @param {number} y - The y-coordinate of the cubie.
- * @param {number} z - The z-coordinate of the cubie.
- * @returns {THREE.Mesh} The created cubie mesh.
+ * This version is stable and correct.
  */
 function createCubie(x, y, z) {
     const geometry = new THREE.BoxGeometry(CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE);
     
-    // FIX: Directly create new THREE.Color objects from the CSS variables
-    // This ensures that the color is defined when the material is created.
     const materials = [
         new THREE.MeshLambertMaterial({ color: new THREE.Color(getCssColor('--color-right')) }),
         new THREE.MeshLambertMaterial({ color: new THREE.Color(getCssColor('--color-left')) }),
@@ -65,7 +59,7 @@ export function createRubiksCube() {
 }
 
 
-// --- Rotation Logic ---
+// --- START: Rewritten and Robust Rotation Logic ---
 
 const pivot = new THREE.Group();
 
@@ -82,7 +76,9 @@ export function rotateFace(clickedObject, dragDirection, scene, onRotationComple
     const faceNormal = clickedObject.face.normal;
     const clickedCubie = clickedObject.object;
     
-    const rotation = getRotationInfo(faceNormal, dragDirection);
+    // Get precise rotation info
+    const rotation = getRotationInfo(faceNormal, clickedCubie.position, dragDirection);
+    
     if (!rotation) {
         onRotationComplete(); // Ensure controls are re-enabled even if move is invalid
         return;
@@ -90,12 +86,12 @@ export function rotateFace(clickedObject, dragDirection, scene, onRotationComple
     
     isRotating = true;
 
-    // Correctly get the cubies on the face to rotate
+    // Get the cubies on the face to rotate
     const activeCubies = getCubiesOnFace(rotation.axisName, clickedCubie.position);
 
     // Use a pivot for smooth rotation
     scene.add(pivot);
-    pivot.rotation.set(0, 0, 0); // Reset pivot
+    pivot.rotation.set(0, 0, 0);
     pivot.position.set(0, 0, 0);
 
     activeCubies.forEach(cubie => {
@@ -105,11 +101,11 @@ export function rotateFace(clickedObject, dragDirection, scene, onRotationComple
     // Animate the rotation
     animateRotation(pivot, rotation.axis, rotation.angle, () => {
         // After animation, re-parent the cubies to the main cube group
+        pivot.updateMatrixWorld(); // Ensure pivot's world matrix is up-to-date
+        
         while(pivot.children.length > 0) {
             const cubie = pivot.children[0];
-            // Update matrix before detaching to preserve world transform
-            cubie.updateMatrixWorld(); 
-            cubeGroup.attach(cubie);
+            cubeGroup.attach(cubie); // This preserves world transform
         }
         scene.remove(pivot);
         isRotating = false;
@@ -118,8 +114,7 @@ export function rotateFace(clickedObject, dragDirection, scene, onRotationComple
 }
 
 /**
- * Animates the rotation of a pivot group.
- * This version uses the correct, modern Three.js methods.
+ * Animates the rotation of a pivot group using Quaternions for stability.
  */
 function animateRotation(target, axis, angle, onComplete) {
     const startQuaternion = new THREE.Quaternion().copy(target.quaternion);
@@ -148,16 +143,17 @@ function animateRotation(target, axis, angle, onComplete) {
 
 /**
  * Determines which cubies are on the face to be rotated.
- * @param {string} axisName - 'x', 'y', or 'z'.
- * @param {THREE.Vector3} position - The position of the clicked cubie.
- * @returns {Array<THREE.Object3D>}
  */
 function getCubiesOnFace(axisName, position) {
     const cubies = [];
     const threshold = 0.5; // Tolerance for floating point inaccuracies
     
     cubeGroup.children.forEach(cubie => {
-        if (Math.abs(cubie.position[axisName] - position[axisName]) < threshold) {
+        // Use the world position for robust checking
+        const worldPos = new THREE.Vector3();
+        cubie.getWorldPosition(worldPos);
+        
+        if (Math.abs(worldPos[axisName] - position[axisName]) < threshold) {
             cubies.push(cubie);
         }
     });
@@ -166,49 +162,56 @@ function getCubiesOnFace(axisName, position) {
 
 /**
  * A robust mapping to determine rotation axis and angle.
+ * This function has been completely rewritten.
  * @returns {{axis: THREE.Vector3, axisName: string, angle: number}}
  */
-function getRotationInfo(faceNormal, dragDirection) {
-    const axis = new THREE.Vector3();
+function getRotationInfo(faceNormal, cubiePosition, dragDirection) {
+    const mainAxis = new THREE.Vector3(); // Axis the face is on (e.g., Y for top face)
+    const rotationAxis = new THREE.Vector3(); // Axis to rotate around (e.g., X or Z for top face)
     let axisName = '';
     let angle = Math.PI / 2; // 90 degrees
 
-    const roundedNormal = new THREE.Vector3(Math.round(faceNormal.x), Math.round(faceNormal.y), Math.round(faceNormal.z));
+    // Determine the main axis of the clicked face
+    if (Math.abs(faceNormal.x) > 0.9) mainAxis.set(1, 0, 0);
+    else if (Math.abs(faceNormal.y) > 0.9) mainAxis.set(0, 1, 0);
+    else if (Math.abs(faceNormal.z) > 0.9) mainAxis.set(0, 0, 1);
+    else return null; // Not a clean face click
 
-    if (roundedNormal.z === 1) { // Front face
-        axisName = 'z';
-        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? -1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0, 0);
-        if (dragDirection === 'UP' || dragDirection === 'RIGHT') angle *= -1;
-    } else if (roundedNormal.z === -1) { // Back face
-        axisName = 'z';
-        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? -1 : 0, 0);
-        if (dragDirection === 'UP' || dragDirection === 'RIGHT') angle *= -1;
-    } else if (roundedNormal.y === 1) { // Top face
+    if (mainAxis.y === 1) { // TOP FACE
         axisName = 'y';
-        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? -1 : 0, 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0);
-        if (dragDirection === 'UP' || dragDirection === 'RIGHT') angle *= -1;
-    } else if (roundedNormal.y === -1) { // Bottom face
+        rotationAxis.set( (dragDirection === 'UP' || dragDirection === 'DOWN') ? 1 : 0, 0, (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? -1 : 0 );
+        if (dragDirection === 'DOWN' || dragDirection === 'LEFT') angle *= -1;
+    } else if (mainAxis.y === -1) { // BOTTOM FACE
         axisName = 'y';
-        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? -1 : 0);
-        if (dragDirection === 'DOWN' || dragDirection === 'RIGHT') angle *= -1;
-    } else if (roundedNormal.x === 1) { // Right face
+        rotationAxis.set( (dragDirection === 'UP' || dragDirection === 'DOWN') ? -1 : 0, 0, (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? 1 : 0 );
+        if (dragDirection === 'DOWN' || dragDirection === 'LEFT') angle *= -1;
+    } else if (mainAxis.x === 1) { // RIGHT FACE
         axisName = 'x';
-        axis.set(0, dragDirection === 'UP' || dragDirection === 'DOWN' ? -1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0);
-        if (dragDirection === 'DOWN' || dragDirection === 'RIGHT') angle *= -1;
-    } else if (roundedNormal.x === -1) { // Left face
+        rotationAxis.set( 0, (dragDirection === 'UP' || dragDirection === 'DOWN') ? 1 : 0, (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? -1 : 0 );
+        if (dragDirection === 'UP' || dragDirection === 'LEFT') angle *= -1;
+    } else if (mainAxis.x === -1) { // LEFT FACE
         axisName = 'x';
-        axis.set(0, dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? -1 : 0);
-        if (dragDirection === 'DOWN' || dragDirection === 'RIGHT') angle *= -1;
-    } else {
-        return null;
+        rotationAxis.set( 0, (dragDirection === 'UP' || dragDirection === 'DOWN') ? -1 : 0, (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? 1 : 0 );
+        if (dragDirection === 'UP' || dragDirection === 'LEFT') angle *= -1;
+    } else if (mainAxis.z === 1) { // FRONT FACE
+        axisName = 'z';
+        rotationAxis.set( (dragDirection === 'UP' || dragDirection === 'DOWN') ? 1 : 0, (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? -1 : 0, 0 );
+        if (dragDirection === 'UP' || dragDirection === 'RIGHT') angle *= -1;
+    } else if (mainAxis.z === -1) { // BACK FACE
+        axisName = 'z';
+        rotationAxis.set( (dragDirection === 'UP' || dragDirection === 'DOWN') ? -1 : 0, (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? 1 : 0, 0 );
+        if (dragDirection === 'UP' || dragDirection === 'RIGHT') angle *= -1;
     }
     
-    return { axis, axisName, angle };
+    return { axis: rotationAxis, axisName, angle };
 }
+
 
 // --- Helper and Unchanged Functions ---
 function getCssColor(varName) {
-    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    const color = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    // Return a default color if CSS variable is not found, to prevent errors.
+    return color || '#FF00FF';
 }
 
 export function scrambleCube() { alert("Scramble feature is not yet implemented."); }
