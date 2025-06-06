@@ -1,9 +1,10 @@
-import * as THREE from '../../libs/three.module.js';
+import * as THREE from 'three';
 
 const CUBIE_SIZE = 1;
 const SPACING = 0.05;
 let cubeGroup;
 
+// Function to create a single cubie
 function createCubie(x, y, z) {
     const geometry = new THREE.BoxGeometry(CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE);
     const materials = [
@@ -47,20 +48,19 @@ export function createRubiksCube() {
 
 export function scrambleCube() {
     console.log("Scrambling the cube...");
-    alert("ویژگی 'بُر زدن' هنوز پیاده‌سازی نشده است.");
+    alert("Scramble feature is not yet implemented.");
 }
 
 export function solveCube() {
     console.log("Solving the cube...");
-    alert("ویژگی 'حل کردن' هنوز پیاده‌سازی نشده است.");
+    alert("Solve feature is not yet implemented.");
 }
 
 export function updateCubeColors() {
     if (!cubeGroup) return;
-    alert("مکعب باید دوباره ساخته شود تا رنگ‌ها اعمال شوند. لطفاً صفحه را رفرش کنید.");
+    alert("The cube must be rebuilt for colors to apply. Please refresh the page.");
 }
 
 function getCssColor(varName) {
     return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
 }
-
