@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// CORRECTED IMPORT PATH: We import directly from the "addons" path defined in the importmap
+import { OrbitControls } from 'three/addons/OrbitControls.js';
 
 let scene, camera, renderer, controls;
 
