@@ -1,36 +1,31 @@
-# Rubik's Cube Challenge
+# 🚀 3D Rubik's Cube
 
-A Rubik's Cube puzzle game built with HTML, CSS, and JavaScript. Solve the cube by rotating faces and achieve the highest score!
+An interactive 3D Rubik's Cube game built with pure JavaScript and the **Three.js** library. This project is optimized to run directly on GitHub Pages.
 
-## Features:
-- Score tracking and best score storage
-- Timer and move counter
-- Game over modal with play again option
-- Responsive design
-- Dark/light theme support
+## ✨ Features
 
-## How to Play:
-1. Click on cube faces to rotate them.
-2. Solve the cube to win!
-3. Track your score and best performance.
+- **Smooth 3D Rendering:** Powered by WebGL and Three.js.
+- **Full Camera Control:** Rotate, pan, and zoom around the cube with mouse or touch.
+- **Light & Dark Themes:** With user preference saved to `localStorage`.
+- **Solve Timer:** Tracks the time it takes to solve the cube.
+- **Time History:** Click the timer to view a history of your solve times.
+- **Color Customization:** Change the color of each of the six faces from the settings menu.
+- **Responsive Design:** Looks great on both desktop and mobile devices.
+- **Professional Project Structure:** Clean, modular, and maintainable code.
 
-## Deploy:
-Host this project on GitHub Pages or a web server.
+## 🛠️ How to Run
 
----
+This project requires no build tools or server. Simply open the `index.html` file in your browser.
 
-### **Key Features:**
-1. **Score System**: Earn points for solving the cube and track your best score.
-2. **Timer**: Shows elapsed time during gameplay.
-3. **Game Over Modal**: Displays final score and allows replay.
-4. **Responsive Design**: Works on all screen sizes.
-5. **Dark Theme**: Automatically switches based on user preference.
+### Deploying to GitHub Pages:
+1. Create a new repository on your GitHub account and push these files.
+2. Go to your repository's `Settings` > `Pages`.
+3. Under the `Branch` section, select your main branch (e.g., `main`) and click `Save`.
+4. After a few minutes, your project will be live at `https://<your-username>.github.io/<repository-name>/`.
 
----
+## 🗺️ Future Roadmap
 
-### **How to Deploy:**
-1. Upload all files to a GitHub repository.
-2. Enable GitHub Pages in the repository settings.
-3. Use the URL to access the game.
-
-Let me know if you need further adjustments! 🎮
+- [ ] Implement full cube move logic (rotating faces with mouse drag).
+- [ ] Implement a proper scramble algorithm.
+- [ ] Implement a solve algorithm (or a simple "reset" button).
+- [ ] Add smooth animations for face rotations.
