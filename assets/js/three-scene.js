@@ -1,17 +1,22 @@
 import * as THREE from 'three';
-// The import path for OrbitControls is now corrected to work with the importmap
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 
+// Global variables for the scene
 let scene, camera, renderer, controls;
+
+// Global variables for interaction logic
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-let intersectedObject = null;
+const startPoint = new THREE.Vector2(); // To store the starting point of a drag
+const moveDirection = new THREE.Vector2(); // To store the vector of the drag
+let isDragging = false; // A flag to know if the user is currently dragging
+let intersectedObject = null; // To store the object that was initially clicked
 
 /**
  * Initializes the main 3D scene, camera, lights, and renderer.
- * @returns {THREE.Scene} The initialized scene object.
  */
 export function initScene() {
+    // ... (This function remains unchanged)
     scene = new THREE.Scene();
     scene.background = new THREE.Color(getComputedStyle(document.body).getPropertyValue('--body-bg').trim());
 
@@ -59,14 +64,17 @@ export function initScene() {
  * Updates the scene's background color when the theme changes.
  */
 export function updateBackgroundColor() {
+    // ... (This function remains unchanged)
     if (scene) {
         scene.background.set(getComputedStyle(document.body).getPropertyValue('--body-bg').trim());
     }
 }
 
+// --- START: Interaction Logic (Updated Section) ---
+
 /**
- * Handles pointer down events (mouse click or touch start) for raycasting.
- * @param {PointerEvent} event
+ * Handles pointer down events (mouse click or touch start).
+ * This function starts a "drag session".
  */
 function onPointerDown(event) {
     const canvasBounds = renderer.domElement.getBoundingClientRect();
@@ -76,27 +84,79 @@ function onPointerDown(event) {
     raycaster.setFromCamera(pointer, camera);
 
     const cube = scene.getObjectByName("RubiksCube");
-    if (!cube) {
-        console.warn("Could not find RubiksCube group in the scene.");
-        return;
-    }
+    if (!cube) return;
 
     const intersects = raycaster.intersectObjects(cube.children);
 
     if (intersects.length > 0) {
-        intersectedObject = intersects[0];
-        console.log("Clicked on a cubie!");
-        console.log("Face Normal:", intersectedObject.face.normal);
-    } else {
-        intersectedObject = null;
+        // A cubie was clicked, so start dragging.
+        isDragging = true;
+        intersectedObject = intersects[0]; // Store the clicked object and face
+        startPoint.set(event.clientX, event.clientY); // Store the starting screen coordinates
+        
+        // IMPORTANT: Disable camera controls so the camera doesn't move while we drag.
+        controls.enabled = false; 
+        console.log("Drag Started on face with normal:", intersectedObject.face.normal);
     }
 }
 
 /**
+ * Handles pointer move events (mouse drag or touch move).
+ * This function tracks the direction of the drag.
+ */
+function onPointerMove(event) {
+    if (!isDragging) return; // Only run if a drag has started
+
+    // Calculate the vector of the movement from the start point
+    moveDirection.x = event.clientX - startPoint.x;
+    moveDirection.y = event.clientY - startPoint.y;
+}
+
+/**
+ * Handles pointer up events (mouse release or touch end).
+ * This function ends the "drag session" and determines the final action.
+ */
+function onPointerUp(event) {
+    if (!isDragging) return;
+
+    const dragThreshold = 50; // User must drag at least 50 pixels for it to count
+    
+    // Check if the drag distance was significant
+    if (Math.abs(moveDirection.x) > dragThreshold || Math.abs(moveDirection.y) > dragThreshold) {
+        let dragDirection = '';
+        // Determine if the drag was more horizontal or vertical
+        if (Math.abs(moveDirection.x) > Math.abs(moveDirection.y)) {
+            dragDirection = moveDirection.x > 0 ? 'RIGHT' : 'LEFT';
+        } else {
+            dragDirection = moveDirection.y > 0 ? 'DOWN' : 'UP';
+        }
+        
+        console.log(`Drag Ended. Direction: ${dragDirection}`);
+        
+        // In the next step, we will call the function to actually rotate the face here.
+        // For example: rotateFace(intersectedObject, dragDirection);
+    } else {
+        console.log("Drag was too short, cancelled.");
+    }
+
+    // End the drag session and clean up
+    isDragging = false;
+    intersectedObject = null;
+    moveDirection.set(0,0);
+    
+    // IMPORTANT: Re-enable camera controls.
+    controls.enabled = true; 
+}
+
+/**
  * Initializes all interaction event listeners for the scene.
+ * This is an updated function that now includes move and up events.
  */
 export function initInteraction() {
     const domElement = renderer.domElement;
     domElement.addEventListener('pointerdown', onPointerDown, false);
-    // We will add 'pointermove' and 'pointerup' listeners here later.
+    domElement.addEventListener('pointermove', onPointerMove, false);
+    domElement.addEventListener('pointerup', onPointerUp, false);
+    // Also cancel the drag if the pointer leaves the canvas area
+    domElement.addEventListener('pointerleave', onPointerUp, false); 
 }
