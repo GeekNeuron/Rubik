@@ -3,7 +3,7 @@ import { createRubiksCube, scrambleCube, solveCube } from './cube.js';
 import { initUI } from './ui-handler.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Initialize the User Interface (Theme, Timer, Modals)
+    // 1. Initialize the User Interface
     initUI();
 
     // 2. Initialize the 3D Scene
@@ -17,5 +17,5 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('scramble-btn').addEventListener('click', scrambleCube);
     document.getElementById('solve-btn').addEventListener('click', solveCube);
 
-    console.log("Galactic Rubik's Cube is ready! 🚀");
+    console.log("Rubik's Cube is ready! 🚀");
 });
