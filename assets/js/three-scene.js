@@ -1,18 +1,15 @@
-// The imports are now only at the top of the file, once.
 import * as THREE from 'three';
+// The import path for OrbitControls is now corrected to work with the importmap
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 
-// Global variables for the scene
 let scene, camera, renderer, controls;
-
-// Global variables for interaction
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 let intersectedObject = null;
 
-
 /**
  * Initializes the main 3D scene, camera, lights, and renderer.
+ * @returns {THREE.Scene} The initialized scene object.
  */
 export function initScene() {
     scene = new THREE.Scene();
@@ -68,16 +65,14 @@ export function updateBackgroundColor() {
 }
 
 /**
- * Handles pointer down events (mouse click or touch start).
+ * Handles pointer down events (mouse click or touch start) for raycasting.
  * @param {PointerEvent} event
  */
 function onPointerDown(event) {
-    // Calculate pointer position in normalized device coordinates (-1 to +1)
     const canvasBounds = renderer.domElement.getBoundingClientRect();
     pointer.x = ((event.clientX - canvasBounds.left) / canvasBounds.width) * 2 - 1;
     pointer.y = -((event.clientY - canvasBounds.top) / canvasBounds.height) * 2 + 1;
 
-    // Update the picking ray with the camera and pointer position
     raycaster.setFromCamera(pointer, camera);
 
     const cube = scene.getObjectByName("RubiksCube");
@@ -103,5 +98,5 @@ function onPointerDown(event) {
 export function initInteraction() {
     const domElement = renderer.domElement;
     domElement.addEventListener('pointerdown', onPointerDown, false);
+    // We will add 'pointermove' and 'pointerup' listeners here later.
 }
-
