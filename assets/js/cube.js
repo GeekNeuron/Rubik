@@ -3,6 +3,7 @@ import * as THREE from 'three';
 const CUBIE_SIZE = 1;
 const SPACING = 0.05;
 let cubeGroup;
+// A flag to prevent new moves while a rotation animation is active
 export let isRotating = false; 
 
 /**
@@ -35,8 +36,6 @@ function createCubie(x, y, z) {
         y * (CUBIE_SIZE + SPACING),
         z * (CUBIE_SIZE + SPACING)
     );
-    // Store the initial grid position for reference
-    cubie.userData.gridPosition = new THREE.Vector3(x, y, z); 
     return cubie;
 }
 
@@ -93,21 +92,21 @@ export function rotateFace(clickedObject, dragDirection, scene, onRotationComple
         // After animation, perform the critical "snap-to-grid" operation
         pivot.updateMatrixWorld();
         
-        // This temporary matrix will hold the rotation transformation
-        const rotationMatrix = new THREE.Matrix4();
-        rotationMatrix.makeRotationFromQuaternion(pivot.quaternion);
-
         while(pivot.children.length > 0) {
             const cubie = pivot.children[0];
             
-            // Re-parent the cubie back to the main group
+            // Get the world matrix of the cubie relative to the pivot
+            const worldMatrix = cubie.matrixWorld;
+            
+            // Re-parent the cubie back to the main cube group
             cubeGroup.attach(cubie);
 
-            // Apply the rotation matrix to the cubie's position vector
-            cubie.position.applyMatrix4(rotationMatrix);
+            // Apply the inverse of the cube group's matrix to get the correct local position
+            cubie.applyMatrix4(cubeGroup.matrixWorld.clone().invert());
+            cubie.applyMatrix4(worldMatrix);
             
             // **THE SNAP-TO-GRID FIX**
-            // Round the final position to the nearest integer grid coordinate
+            // Round the final position to the nearest integer grid coordinate to eliminate floating-point errors.
             cubie.position.round(); 
             // Also round the rotation to the nearest 90-degree increment
             cubie.rotation.x = Math.round(cubie.rotation.x / (Math.PI / 2)) * (Math.PI / 2);
@@ -132,11 +131,13 @@ function animateRotation(target, axis, angle, onComplete) {
         if (!startTime) startTime = timestamp;
         const progress = Math.min((timestamp - startTime) / duration, 1);
         
+        // Use Slerp for smooth, stable quaternion rotation
         target.quaternion.slerpQuaternions(startQuaternion, endQuaternion, progress);
 
         if (progress < 1) {
             requestAnimationFrame(step);
         } else {
+            // On completion, ensure the final rotation is exact
             target.quaternion.copy(endQuaternion);
             onComplete();
         }
@@ -157,7 +158,7 @@ function getCubiesOnFace(axisName, position) {
 }
 
 function getRotationInfo(faceNormal, dragDirection) {
-    const axis = new THREE.Vector3();
+    const rotationAxis = new THREE.Vector3();
     let axisName = '';
     let angle = Math.PI / 2;
 
@@ -165,33 +166,39 @@ function getRotationInfo(faceNormal, dragDirection) {
 
     if (roundedNormal.equals(new THREE.Vector3(0, 0, 1))) { // Front
         axisName = 'z';
-        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? -1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0, 0);
-        if (dragDirection === 'UP' || dragDirection === 'RIGHT') angle *= -1;
+        rotationAxis.set(0, 0, -1);
+        if (dragDirection === 'UP' || dragDirection === 'DOWN') { if(dragDirection === 'DOWN') angle *= -1; } 
+        else { rotationAxis.set(0, 1, 0); if(dragDirection === 'LEFT') angle *= -1; }
     } else if (roundedNormal.equals(new THREE.Vector3(0, 0, -1))) { // Back
         axisName = 'z';
-        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? -1 : 0, 0);
-        if (dragDirection === 'UP' || dragDirection === 'RIGHT') angle *= -1;
+        rotationAxis.set(0, 0, 1);
+        if (dragDirection === 'UP' || dragDirection === 'DOWN') { if(dragDirection === 'DOWN') angle *= -1; } 
+        else { rotationAxis.set(0, 1, 0); if(dragDirection === 'RIGHT') angle *= -1; }
     } else if (roundedNormal.equals(new THREE.Vector3(0, 1, 0))) { // Top
         axisName = 'y';
-        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? -1 : 0);
-        if (dragDirection === 'DOWN' || dragDirection === 'LEFT') angle *= -1;
+        rotationAxis.set(0, -1, 0);
+        if (dragDirection === 'UP' || dragDirection === 'DOWN') { rotationAxis.set(1, 0, 0); if(dragDirection === 'UP') angle *= -1; } 
+        else { if(dragDirection === 'LEFT') angle *= -1; }
     } else if (roundedNormal.equals(new THREE.Vector3(0, -1, 0))) { // Bottom
         axisName = 'y';
-        axis.set(dragDirection === 'UP' || dragDirection === 'DOWN' ? -1 : 0, 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0);
-        if (dragDirection === 'DOWN' || dragDirection === 'LEFT') angle *= -1;
+        rotationAxis.set(0, 1, 0);
+        if (dragDirection === 'UP' || dragDirection === 'DOWN') { rotationAxis.set(1, 0, 0); if(dragDirection === 'DOWN') angle *= -1; } 
+        else { if(dragDirection === 'RIGHT') angle *= -1; }
     } else if (roundedNormal.equals(new THREE.Vector3(1, 0, 0))) { // Right
         axisName = 'x';
-        axis.set(0, dragDirection === 'UP' || dragDirection === 'DOWN' ? 1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? -1 : 0);
-        if (dragDirection === 'UP' || dragDirection === 'LEFT') angle *= -1;
+        rotationAxis.set(-1, 0, 0);
+        if (dragDirection === 'UP' || dragDirection === 'DOWN') { if(dragDirection === 'DOWN') angle *= -1; } 
+        else { rotationAxis.set(0, 1, 0); if(dragDirection === 'RIGHT') angle *= -1; }
     } else if (roundedNormal.equals(new THREE.Vector3(-1, 0, 0))) { // Left
         axisName = 'x';
-        axis.set(0, dragDirection === 'UP' || dragDirection === 'DOWN' ? -1 : 0, dragDirection === 'LEFT' || dragDirection === 'RIGHT' ? 1 : 0);
-        if (dragDirection === 'UP' || dragDirection === 'LEFT') angle *= -1;
+        rotationAxis.set(1, 0, 0);
+        if (dragDirection === 'UP' || dragDirection === 'DOWN') { if(dragDirection === 'DOWN') angle *= -1; } 
+        else { rotationAxis.set(0, 1, 0); if(dragDirection === 'LEFT') angle *= -1; }
     } else {
         return null;
     }
     
-    return { axis, axisName, angle };
+    return { axis: rotationAxis, axisName, angle };
 }
 
 // --- Helper and Unchanged Functions ---
