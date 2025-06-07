@@ -80,20 +80,19 @@ function onPointerUp() {
             ? (moveDirection.x > 0 ? 'RIGHT' : 'LEFT')
             : (moveDirection.y > 0 ? 'DOWN' : 'UP');
             
-        rotateFace(intersectedObject, dragDirection, scene, () => {
+        // Pass the 'camera' object to the rotateFace function
+        rotateFace(intersectedObject, dragDirection, scene, camera, () => {
             controls.enabled = true;
             
-            // If the game was ready (just scrambled), start the clock on the first move.
             if (isGameReady()) {
                 startClock();
-                setGameReady(false); // Set to false so the timer doesn't restart on subsequent moves.
+                setGameReady(false);
             }
 
-            // Check if the cube is solved after the move.
             if (isSolved()) {
                 stopClock();
                 console.log("CONGRATULATIONS! The cube is solved!");
-                alert("You solved the cube!"); 
+                alert("شما مکعب را حل کردید!"); 
             }
         });
     } else {
