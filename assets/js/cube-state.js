@@ -4,10 +4,11 @@ import * as THREE from 'three';
 
 let pieces = [];
 let isRotatingState = false;
+// A flag to track if the game is in a "ready to start" state after a scramble.
+let gameReadyState = false;
 
 /**
  * Initializes the logical state of the cube.
- * Each piece has a position and a rotation (quaternion).
  */
 export function initState() {
     pieces = [];
@@ -28,10 +29,16 @@ export function initState() {
 }
 
 /**
+ * Resets the cube to its initial, solved state.
+ */
+export function resetState() {
+    initState();
+    setGameReady(false); // Game is not ready to start until scrambled
+    return pieces;
+}
+
+/**
  * Applies a move to the logical state.
- * This is pure math and has no floating point errors.
- * @param {{axis: string, slice: number, dir: number}} move
- * @returns {Array} The new state array.
  */
 export function applyMove(move) {
     const { axis, dir } = move;
@@ -43,12 +50,8 @@ export function applyMove(move) {
     if (axis === 'z') rotationMatrix.makeRotationZ(angle);
 
     pieces.forEach(piece => {
-        // Check if the piece is on the slice to be rotated
         if (isPieceOnSlice(piece, move)) {
-            // Apply rotation to the piece's position vector
             piece.position.applyMatrix4(rotationMatrix).round();
-            
-            // Apply rotation to the piece's orientation (quaternion)
             const rotationQuaternion = new THREE.Quaternion().setFromRotationMatrix(rotationMatrix);
             piece.quaternion.premultiply(rotationQuaternion);
         }
@@ -58,9 +61,32 @@ export function applyMove(move) {
 }
 
 /**
+ * Applies a series of random moves to the cube to scramble it.
+ */
+export function scramble() {
+    // Always start scrambling from a solved state
+    resetState();
+    
+    const moves = ['x', 'y', 'z'];
+    const slices = [-1, 0, 1];
+    const dirs = [-1, 1];
+    const scrambleTurnCount = 20; // Number of random turns
+
+    for (let i = 0; i < scrambleTurnCount; i++) {
+        const randomAxis = moves[Math.floor(Math.random() * moves.length)];
+        const randomSlice = slices[Math.floor(Math.random() * slices.length)];
+        const randomDir = dirs[Math.floor(Math.random() * dirs.length)];
+        
+        applyMove({ axis: randomAxis, slice: randomSlice, dir: randomDir });
+    }
+    
+    // Set the game state to "ready" so the timer can start on the next move
+    setGameReady(true);
+    return pieces;
+}
+
+/**
  * Gets the names of cubies on a specific face for animation purposes.
- * @param {{axis: string, slice: number}} move
- * @returns {Array<string>} An array of cubie names.
  */
 export function getCubiesOnFace(move) {
     const cubieNames = [];
@@ -77,37 +103,23 @@ function isPieceOnSlice(piece, move) {
     return Math.abs(piece.position[axis] - slice) < 0.1;
 }
 
-// Simple state management for rotation lock
-export const isRotating = () => isRotatingState;
-export const setRotating = (state) => { isRotatingState = state; };
-
 /**
  * Checks if the cube is in its solved state.
- * A cube is solved if every piece is in its initial position
- * and has its initial (identity) orientation.
- * @returns {boolean} True if the cube is solved, false otherwise.
  */
 export function isSolved() {
     const identityQuaternion = new THREE.Quaternion();
-    // A small tolerance for floating-point comparisons in quaternions
     const epsilon = 0.001; 
 
-    // Use .every() to check if ALL pieces satisfy the solved condition
     return pieces.every(piece => {
-        // Create a Vector3 from the initial position object for comparison
-        const initialPosVec = new THREE.Vector3(
-            piece.initialPosition.x, 
-            piece.initialPosition.y, 
-            piece.initialPosition.z
-        );
-
-        // Condition 1: The current logical position must match the initial logical position.
+        const initialPosVec = new THREE.Vector3(piece.initialPosition.x, piece.initialPosition.y, piece.initialPosition.z);
         const positionMatches = piece.position.equals(initialPosVec);
-        
-        // Condition 2: The current orientation must be the same as the initial orientation.
-        // We check the angle between the current quaternion and the identity quaternion.
         const rotationMatches = piece.quaternion.angleTo(identityQuaternion) < epsilon;
-
         return positionMatches && rotationMatches;
     });
 }
+
+// State management functions
+export const isRotating = () => isRotatingState;
+export const setRotating = (state) => { isRotatingState = state; };
+export const isGameReady = () => gameReadyState;
+export const setGameReady = (state) => { gameReadyState = state; };
