@@ -1,5 +1,5 @@
 import { initScene, initInteraction } from './three-scene.js';
-import { createRubiksCubeGroup, syncVisualsToState } from './cube.js';
+import { createRubiksCubeGroup } from './cube.js';
 import { initState } from './cube-state.js';
 import { initUI } from './ui-handler.js';
 
