@@ -34,7 +34,7 @@ export function initState() {
  * @returns {Array} The new state array.
  */
 export function applyMove(move) {
-    const { axis, slice, dir } = move;
+    const { axis, dir } = move;
     const angle = (Math.PI / 2) * dir * -1; // Rotation angle
     const rotationMatrix = new THREE.Matrix4();
     
@@ -44,7 +44,7 @@ export function applyMove(move) {
 
     pieces.forEach(piece => {
         // Check if the piece is on the slice to be rotated
-        if (Math.abs(piece.position[axis] - slice) < 0.1) {
+        if (isPieceOnSlice(piece, move)) {
             // Apply rotation to the piece's position vector
             piece.position.applyMatrix4(rotationMatrix).round();
             
@@ -59,21 +59,22 @@ export function applyMove(move) {
 
 /**
  * Gets the names of cubies on a specific face for animation purposes.
- * @param {string} axis - 'x', 'y', or 'z'.
- * @param {THREE.Vector3} position - The world position of the clicked cubie.
+ * @param {{axis: string, slice: number}} move
  * @returns {Array<string>} An array of cubie names.
  */
-export function getCubiesOnFace(axis, position) {
+export function getCubiesOnFace(move) {
     const cubieNames = [];
-    const threshold = 0.5;
-    
     pieces.forEach(piece => {
-        // Check the logical position against the slice defined by the click
-        if (Math.abs(piece.position[axis] - position[axis]) < threshold) {
+        if (isPieceOnSlice(piece, move)) {
             cubieNames.push(piece.name);
         }
     });
     return cubieNames;
+}
+
+function isPieceOnSlice(piece, move) {
+    const { axis, slice } = move;
+    return Math.abs(piece.position[axis] - slice) < 0.1;
 }
 
 // Simple state management for rotation lock
