@@ -1,4 +1,3 @@
-// The imports are now correct and will find their exported functions.
 import { updateBackgroundColor } from './three-scene.js';
 import { updateCubeColors } from './cube.js';
 
@@ -64,8 +63,10 @@ export function stopClock() {
     if (!timerInterval) return;
     clearInterval(timerInterval);
     timerInterval = null;
-    timerHistory.push({ time: seconds, date: new Date().toLocaleString('en-US') });
-    localStorage.setItem('timerHistory', JSON.stringify(timerHistory));
+    if (seconds > 0) {
+        timerHistory.push({ time: seconds, date: new Date().toLocaleString('en-US') });
+        localStorage.setItem('timerHistory', JSON.stringify(timerHistory));
+    }
 }
 
 export function resetClock() {
@@ -126,7 +127,6 @@ function populateColorSettings() {
         colorInput.value = getComputedStyle(document.documentElement).getPropertyValue(face.var).trim();
         colorInput.addEventListener('input', (e) => {
             document.documentElement.style.setProperty(face.var, e.target.value);
-            // The live update is complex, so we call a placeholder function
             updateCubeColors(); 
         });
         group.append(label, colorInput);
