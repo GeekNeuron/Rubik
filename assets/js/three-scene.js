@@ -1,11 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
-// highlight-start
-// 'isRotating' is no longer imported from cube.js
 import { rotateFace } from './cube.js';
-// It's now imported from its correct source: cube-state.js
 import { isRotating } from './cube-state.js';
-// highlight-end
 
 let scene, camera, renderer, controls;
 const raycaster = new THREE.Raycaster();
@@ -47,7 +43,6 @@ export function initScene() {
 }
 
 function onPointerDown(event) {
-    // We now use the imported isRotating() function which is a getter
     if (isRotating()) return;
     const canvasBounds = renderer.domElement.getBoundingClientRect();
     pointer.x = ((event.clientX - canvasBounds.left) / canvasBounds.width) * 2 - 1;
