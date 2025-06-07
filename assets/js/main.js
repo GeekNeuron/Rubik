@@ -7,22 +7,23 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
         console.log("Initializing application...");
         
-        // 1. Initialize the UI and the logical state
+        // 1. Initialize the UI elements (buttons, modals, theme)
         initUI();
+
+        // 2. Initialize the core logical state of the cube
         const logicalState = initState();
 
-        // 2. Initialize the 3D scene
+        // 3. Initialize the 3D scene
         const scene = initScene();
 
-        // 3. Create the visual representation of the cube
+        // 4. Create the visual representation based on the logical state
         const rubiksCubeGroup = createRubiksCubeGroup(logicalState);
         scene.add(rubiksCubeGroup);
 
-        // 4. Initialize user interaction handlers
-        // Note: Manual rotation is temporarily complex with this new architecture.
+        // 5. Initialize user interaction handlers
         initInteraction();
         
-        // 5. Connect buttons
+        // 6. Connect buttons, passing the scene object to them
         document.getElementById('scramble-btn').addEventListener('click', () => scrambleCube(scene));
         document.getElementById('solve-btn').addEventListener('click', () => solveCube(scene));
 
