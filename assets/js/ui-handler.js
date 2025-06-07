@@ -1,5 +1,5 @@
-// The imports are now correct based on the new architecture.
 import { updateBackgroundColor } from './three-scene.js';
+import { updateCubeColors } from './cube.js';
 
 /**
  * Initializes all UI components of the application.
@@ -26,7 +26,6 @@ function initTheme() {
         const newTheme = isDark ? 'dark' : 'light';
         localStorage.setItem('theme', newTheme);
         updateThemeIcon(newTheme);
-        // Call the imported function to update the 3D scene's background
         updateBackgroundColor();
     });
 }
@@ -43,18 +42,21 @@ function updateThemeIcon(theme) {
     themeIconElement.innerHTML = theme === 'dark' ? sunIcon : moonIcon;
 }
 
-let timerInterval;
+// --- Timer Logic ---
+
+let timerInterval = null;
 let seconds = 0;
 let timerHistory = JSON.parse(localStorage.getItem('timerHistory')) || [];
 
 /**
- * Initializes the timer display and its click event.
+ * Initializes the timer display.
  */
 function initTimer() {
     const timerElement = document.getElementById('timer');
     if (timerElement) {
         timerElement.addEventListener('click', showHistoryModal);
     }
+    resetClock(); // Set initial time to 00:00:00
 }
 
 function formatTime(sec) {
@@ -65,8 +67,46 @@ function formatTime(sec) {
 }
 
 /**
- * Sets up event listeners for modals.
+ * Starts the timer.
  */
+export function startClock() {
+    if (timerInterval) return; // Prevent multiple intervals
+    console.log("Timer started!");
+    timerInterval = setInterval(() => {
+        seconds++;
+        document.getElementById('timer').textContent = formatTime(seconds);
+    }, 1000);
+}
+
+/**
+ * Stops the timer and saves the result to history.
+ */
+export function stopClock() {
+    if (!timerInterval) return;
+
+    console.log(`Timer stopped! Final time: ${formatTime(seconds)}`);
+    clearInterval(timerInterval);
+    timerInterval = null;
+    
+    // Save the time to history
+    timerHistory.push({ time: seconds, date: new Date().toLocaleString('en-US') });
+    localStorage.setItem('timerHistory', JSON.stringify(timerHistory));
+}
+
+/**
+ * Resets the timer to zero.
+ */
+export function resetClock() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    seconds = 0;
+    document.getElementById('timer').textContent = formatTime(seconds);
+}
+
+// --- Modal Logic ---
+
 function initModals() {
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
@@ -85,9 +125,6 @@ function initModals() {
     });
 }
 
-/**
- * Displays the timer history modal with saved times.
- */
 function showHistoryModal() {
     const historyModal = document.getElementById('history-modal');
     const historyList = document.getElementById('history-list');
