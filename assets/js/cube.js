@@ -5,7 +5,6 @@ import { resetClock, stopClock } from './ui-handler.js';
 const CUBIE_SIZE = 1;
 const SPACING = 0.05;
 
-// The function to create the visual cube group remains the same
 export function createRubiksCubeGroup(logicalState) {
     const cubeGroup = new THREE.Group();
     cubeGroup.name = "RubiksCube";
@@ -18,7 +17,6 @@ export function createRubiksCubeGroup(logicalState) {
     return cubeGroup;
 }
 
-// The main function to trigger a single rotation remains the same
 export function rotateFace(clickedObject, dragDirection, scene, onRotationComplete) {
     if (isRotating()) return;
     const faceNormal = clickedObject.face.normal;
@@ -37,12 +35,9 @@ export function rotateFace(clickedObject, dragDirection, scene, onRotationComple
     });
 }
 
-/**
- * NEW: The main function to solve the cube by playing back moves.
- */
 export function solveCube(scene) {
     if (isRotating()) return;
-    stopClock(); // Stop the timer when solving starts
+    stopClock();
     
     const solutionMoves = getSolution();
     if (solutionMoves.length === 0) {
@@ -53,7 +48,6 @@ export function solveCube(scene) {
     console.log("Solving cube with moves:", solutionMoves);
     setRotating(true);
     
-    // Execute moves one by one with a delay
     function executeNextMove(index) {
         if (index >= solutionMoves.length) {
             setRotating(false);
@@ -62,11 +56,9 @@ export function solveCube(scene) {
         }
         
         const move = solutionMoves[index];
-        const newLogicalState = applyMove(move); // Apply the move logically
+        const newLogicalState = applyMove(move);
         
-        // Animate the move visually
         animateAndSync(move, newLogicalState, scene, () => {
-            // When one animation is done, trigger the next
             executeNextMove(index + 1);
         });
     }
@@ -74,9 +66,6 @@ export function solveCube(scene) {
     executeNextMove(0);
 }
 
-/**
- * A new helper function to combine animation and syncing.
- */
 function animateAndSync(move, newLogicalState, scene, onComplete) {
     const cubeGroup = scene.getObjectByName("RubiksCube");
     const cubiesToAnimate = getCubiesOnFace(move);
@@ -87,7 +76,6 @@ function animateAndSync(move, newLogicalState, scene, onComplete) {
     });
 }
 
-// The rest of the functions (animateRotation, syncVisualsToState, getRotationInfo, etc.) remain unchanged
 function animateRotation(cubieNames, cubeGroup, scene, move, onComplete) {
     const pivot = new THREE.Group();
     scene.add(pivot);
@@ -130,9 +118,16 @@ export function syncVisualsToState(logicalState, cubeGroup) {
 function getRotationInfo(faceNormal, worldPosition, dragDirection, cubeQuaternion) {
     const move = { axis: '', slice: 0, dir: 1 };
     const normal = faceNormal.clone().applyQuaternion(cubeQuaternion).round();
+
     if (Math.abs(normal.y) > 0.5) {
         move.axis = 'y'; move.slice = Math.round(worldPosition.y / (1 + SPACING));
-        move.dir = (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y) : (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.y);
+        const cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
+        if (Math.abs(cameraDirection.x) > Math.abs(cameraDirection.z)) {
+            move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.y) * Math.sign(cameraDirection.x) : (dragDirection === 'LEFT' ? -1 : 1) * Math.sign(normal.y) * Math.sign(cameraDirection.x);
+        } else {
+            move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.y) * Math.sign(cameraDirection.z) : (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y) * Math.sign(cameraDirection.z);
+        }
     } else if (Math.abs(normal.x) > 0.5) {
         move.axis = 'x'; move.slice = Math.round(worldPosition.x / (1 + SPACING));
         move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.x) : (dragDirection === 'LEFT' ? -1 : 1) * Math.sign(normal.x);
@@ -140,6 +135,7 @@ function getRotationInfo(faceNormal, worldPosition, dragDirection, cubeQuaternio
         move.axis = 'z'; move.slice = Math.round(worldPosition.z / (1 + SPACING));
         move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.z) : (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.z);
     }
+    
     move.rotationAxis = new THREE.Vector3(move.axis === 'x' ? 1 : 0, move.axis === 'y' ? 1 : 0, move.axis === 'z' ? 1 : 0);
     move.angle = move.dir * Math.PI / 2;
     return move;
@@ -163,4 +159,6 @@ function createVisualCubie(x, y, z) {
     cubie.name = `cubie_${x}_${y}_${z}`;
     return cubie;
 }
+
 function getCssColor(varName){return getComputedStyle(document.documentElement).getPropertyValue(varName).trim()||"#FF00FF"}
+export function updateCubeColors() { /* Not implemented yet */ }
