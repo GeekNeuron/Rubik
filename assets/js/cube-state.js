@@ -80,3 +80,34 @@ function isPieceOnSlice(piece, move) {
 // Simple state management for rotation lock
 export const isRotating = () => isRotatingState;
 export const setRotating = (state) => { isRotatingState = state; };
+
+/**
+ * Checks if the cube is in its solved state.
+ * A cube is solved if every piece is in its initial position
+ * and has its initial (identity) orientation.
+ * @returns {boolean} True if the cube is solved, false otherwise.
+ */
+export function isSolved() {
+    const identityQuaternion = new THREE.Quaternion();
+    // A small tolerance for floating-point comparisons in quaternions
+    const epsilon = 0.001; 
+
+    // Use .every() to check if ALL pieces satisfy the solved condition
+    return pieces.every(piece => {
+        // Create a Vector3 from the initial position object for comparison
+        const initialPosVec = new THREE.Vector3(
+            piece.initialPosition.x, 
+            piece.initialPosition.y, 
+            piece.initialPosition.z
+        );
+
+        // Condition 1: The current logical position must match the initial logical position.
+        const positionMatches = piece.position.equals(initialPosVec);
+        
+        // Condition 2: The current orientation must be the same as the initial orientation.
+        // We check the angle between the current quaternion and the identity quaternion.
+        const rotationMatches = piece.quaternion.angleTo(identityQuaternion) < epsilon;
+
+        return positionMatches && rotationMatches;
+    });
+}
