@@ -1,5 +1,5 @@
 import { initScene, initInteraction } from './three-scene.js';
-import { createRubiksCubeGroup } from './cube.js';
+import { createRubiksCubeGroup, scrambleCube } from './cube.js';
 import { initState } from './cube-state.js';
 import { initUI } from './ui-handler.js';
 
@@ -23,6 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. Initialize user interaction handlers
         initInteraction();
         
+        // 6. Connect scramble button, passing the scene object to it
+        document.getElementById('scramble-btn').addEventListener('click', () => scrambleCube(scene));
+        document.getElementById('solve-btn').addEventListener('click', () => alert("Solve feature not yet implemented."));
+
         console.log("Rubik's Cube is ready! 🚀");
 
     } catch (error) {
