@@ -1,172 +1,151 @@
 import * as THREE from 'three';
-import { applyMove, getCubiesOnFace, isRotating, setRotating, getSolution, scramble as scrambleState } from './cube-state.js';
-import { resetClock, stopClock } from './ui-handler.js';
+import { applyMove, getScramble, getSolution, isRotating, setRotating, toFaceletString, initState } from './cube-state.js';
+import { resetClock, stopClock, startClock } from './ui-handler.js';
 
 const CUBIE_SIZE = 1;
 const SPACING = 0.05;
 
-// The function to create the visual cube group remains the same
-export function createRubiksCubeGroup(logicalState) {
+// This maps the solver's face names (U, R, F, D, L, B) to our CSS color variables.
+const FACE_COLOR_MAP = { U: 'up', R: 'right', F: 'front', D: 'down', L: 'left', B: 'back' };
+
+/**
+ * Creates the main THREE.Group for the cube.
+ * @returns {THREE.Group}
+ */
+export function createRubiksCubeGroup() {
     const cubeGroup = new THREE.Group();
     cubeGroup.name = "RubiksCube";
-    logicalState.forEach(piece => {
-        const { x, y, z } = piece.initialPosition;
-        const cubie = createVisualCubie(x, y, z);
+    for (let i = 0; i < 27; i++) {
+        // We only create placeholders. The colors will be set by syncVisualsToState.
+        const geometry = new THREE.BoxGeometry(CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE);
+        const material = new THREE.MeshLambertMaterial({ color: 0x000000 });
+        const cubie = new THREE.Mesh(geometry, [material, material, material, material, material, material]);
+        cubie.name = `cubie_${i}`;
+        cubie.visible = false; // Hide non-center pieces initially
         cubeGroup.add(cubie);
-    });
-    syncVisualsToState(logicalState, cubeGroup);
+    }
     return cubeGroup;
 }
 
-// rotateFace now accepts 'camera' as a parameter
-export function rotateFace(clickedObject, dragDirection, scene, camera, onRotationComplete) {
-    if (isRotating()) return;
-    const faceNormal = clickedObject.face.normal;
-    const worldPosition = new THREE.Vector3();
-    clickedObject.object.getWorldPosition(worldPosition);
+/**
+ * The "Snap-to-Grid" function. It reads the logical state and updates the visuals.
+ * This is the most critical function for stability.
+ */
+export function syncVisualsToState(cubeGroup) {
+    const faceletString = toFaceletString();
+    if (!faceletString || !cubeGroup) return;
+
+    // Define the mapping from facelet index to cubie and face index
+    const stickerMap = [
+        { c: 7, f: 2 }, { c: 8, f: 2 }, { c: 9, f: 2 }, { c: 4, f: 2 }, { c: 5, f: 2 }, { c: 6, f: 2 }, { c: 1, f: 2 }, { c: 2, f: 2 }, { c: 3, f: 2 },
+        { c: 9, f: 0 }, { c: 6, f: 0 }, { c: 3, f: 0 }, { c: 18, f: 0 }, { c: 15, f: 0 }, { c: 12, f: 0 }, { c: 27, f: 0 }, { c: 24, f: 0 }, { c: 21, f: 0 },
+        { c: 3, f: 4 }, { c: 2, f: 4 }, { c: 1, f: 4 }, { c: 12, f: 4 }, { c: 11, f: 4 }, { c: 10, f: 4 }, { c: 21, f: 4 }, { c: 20, f: 4 }, { c: 19, f: 4 },
+        { c: 19, f: 3 }, { c: 20, f: 3 }, { c: 21, f: 3 }, { c: 22, f: 3 }, { c: 23, f: 3 }, { c: 24, f: 3 }, { c: 25, f: 3 }, { c: 26, f: 3 }, { c: 27, f: 3 },
+        { c: 1, f: 1 }, { c: 4, f: 1 }, { c: 7, f: 1 }, { c: 10, f: 1 }, { c: 13, f: 1 }, { c: 16, f: 1 }, { c: 19, f: 1 }, { c: 22, f: 1 }, { c: 25, f: 1 },
+        { c: 7, f: 5 }, { c: 8, f: 5 }, { c: 9, f: 5 }, { c: 16, f: 5 }, { c: 17, f: 5 }, { c: 18, f: 5 }, { c: 25, f: 5 }, { c: 26, f: 5 }, { c: 27, f: 5 }
+    ];
     
-    // Pass the camera object down to getRotationInfo
-    const move = getRotationInfo(faceNormal, worldPosition, dragDirection, scene.getObjectByName("RubiksCube").quaternion, camera);
-    
-    if (!move) {
-        onRotationComplete();
-        return;
+    // Map cubie indices to their 3D positions
+    const positionMap = {};
+    let i = 1;
+    for (let y = 1; y >= -1; y--) {
+        for (let z = -1; z <= 1; z++) {
+            for (let x = -1; x <= 1; x++) {
+                positionMap[i++] = {x, y, z};
+            }
+        }
     }
-    setRotating(true);
-    const newLogicalState = applyMove(move);
-    animateAndSync(move, newLogicalState, scene, () => {
-        setRotating(false);
-        if (onRotationComplete) onRotationComplete();
-    });
+    
+    // Update colors and positions based on the facelet string
+    for (let i = 0; i < 54; i++) {
+        const face = FACE_COLOR_MAP[faceletString[i]];
+        const color = getCssColor(`--color-${face}`);
+        const map = stickerMap[i];
+        const cubie = cubeGroup.children[map.c - 1];
+        const pos = positionMap[map.c];
+        
+        cubie.visible = true;
+        cubie.position.set(pos.x * (CUBIE_SIZE + SPACING), pos.y * (CUBIE_SIZE + SPACING), pos.z * (CUBIE_SIZE + SPACING));
+        cubie.material[map.f].color.set(color);
+    }
 }
 
-// solveCube also needs to pass the camera to its rotation calls
-export function solveCube(scene, camera) {
+/**
+ * Animates a sequence of moves.
+ */
+function animateMoveSequence(moves, scene, onComplete) {
     if (isRotating()) return;
-    stopClock();
-    
-    const solutionMoves = getSolution();
-    if (solutionMoves.length === 0) {
-        console.log("Cube is already solved or no moves to undo.");
-        return;
-    }
-    
-    console.log("Solving cube with moves:", solutionMoves);
     setRotating(true);
     
+    const moveArray = moves.split(' ');
+
     function executeNextMove(index) {
-        if (index >= solutionMoves.length) {
+        if (index >= moveArray.length) {
             setRotating(false);
-            console.log("Solve complete!");
+            if (onComplete) onComplete();
+            return;
+        }
+
+        const move = moveArray[index];
+        if (!move) { // Handle empty strings from multiple spaces
+            executeNextMove(index + 1);
             return;
         }
         
-        const move = solutionMoves[index];
-        const newLogicalState = applyMove(move);
+        applyMove(move); // Apply the move to the logical state
         
-        animateAndSync(move, newLogicalState, scene, () => {
+        // This is a simplified animation. For a true animation, this needs more work.
+        // For now, we just snap to the new state.
+        syncVisualsToState(scene.getObjectByName("RubiksCube"));
+        
+        // Use a short delay to simulate animation
+        setTimeout(() => {
             executeNextMove(index + 1);
-        });
+        }, 100); 
     }
     
     executeNextMove(0);
 }
 
-function animateAndSync(move, newLogicalState, scene, onComplete) {
-    const cubeGroup = scene.getObjectByName("RubiksCube");
-    const cubiesToAnimate = getCubiesOnFace(move);
-
-    animateRotation(cubiesToAnimate, cubeGroup, scene, move, () => {
-        syncVisualsToState(newLogicalState, cubeGroup);
-        if (onComplete) onComplete();
-    });
-}
-
-function animateRotation(cubieNames, cubeGroup, scene, move, onComplete) {
-    const pivot = new THREE.Group();
-    scene.add(pivot);
-    cubieNames.forEach(name => {
-        const cubieObject = cubeGroup.getObjectByName(name);
-        if (cubieObject) pivot.attach(cubieObject);
-    });
-    const startQuaternion = new THREE.Quaternion();
-    const endQuaternion = new THREE.Quaternion().setFromAxisAngle(move.rotationAxis, move.angle);
-    const duration = 150;
-    let startTime = null;
-    function step(timestamp) {
-        if (!startTime) startTime = timestamp;
-        const progress = Math.min((timestamp - startTime) / duration, 1);
-        pivot.quaternion.slerpQuaternions(startQuaternion, endQuaternion, progress);
-        if (progress < 1) {
-            requestAnimationFrame(step);
-        } else {
-            pivot.quaternion.copy(endQuaternion);
-            while (pivot.children.length > 0) cubeGroup.attach(pivot.children[0]);
-            scene.remove(pivot);
-            onComplete();
-        }
-    }
-    requestAnimationFrame(step);
-}
-
-export function syncVisualsToState(logicalState, cubeGroup) {
-    if (!cubeGroup) return;
-    logicalState.forEach(piece => {
-        const cubieObject = cubeGroup.getObjectByName(piece.name);
-        if (cubieObject) {
-            const visualPos = new THREE.Vector3(piece.position.x * (1 + SPACING), piece.position.y * (1 + SPACING), piece.position.z * (1 + SPACING));
-            cubieObject.position.copy(visualPos);
-            cubieObject.quaternion.copy(piece.quaternion);
-        }
-    });
-}
-
-// getRotationInfo now accepts 'camera' as a parameter
-function getRotationInfo(faceNormal, worldPosition, dragDirection, cubeQuaternion, camera) {
-    const move = { axis: '', slice: 0, dir: 1 };
-    const normal = faceNormal.clone().applyQuaternion(cubeQuaternion).round();
-
-    if (Math.abs(normal.y) > 0.5) {
-        move.axis = 'y'; move.slice = Math.round(worldPosition.y / (1 + SPACING));
-        const cameraDirection = new THREE.Vector3();
-        camera.getWorldDirection(cameraDirection);
-        // This complex logic determines rotation direction based on camera view
-        if (Math.abs(cameraDirection.x) > Math.abs(cameraDirection.z)) {
-             move.dir = (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y) * -Math.sign(cameraDirection.x) : (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.y);
-        } else {
-             move.dir = (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y) * -Math.sign(cameraDirection.z) : (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.y);
-        }
-    } else if (Math.abs(normal.x) > 0.5) {
-        move.axis = 'x'; move.slice = Math.round(worldPosition.x / (1 + SPACING));
-        move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.x) : (dragDirection === 'LEFT' ? -1 : 1) * Math.sign(normal.x);
-    } else { // Z-face
-        move.axis = 'z'; move.slice = Math.round(worldPosition.z / (1 + SPACING));
-        move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.z) : (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.z);
-    }
-    
-    move.rotationAxis = new THREE.Vector3(move.axis === 'x' ? 1 : 0, move.axis === 'y' ? 1 : 0, move.axis === 'z' ? 1 : 0);
-    move.angle = move.dir * Math.PI / 2;
-    return move;
-}
-
 export function scrambleCube(scene) {
     if (isRotating()) return;
     console.log("Scrambling the cube...");
+    
     resetClock();
-    const newLogicalState = scrambleState();
-    const cubeGroup = scene.getObjectByName("RubiksCube");
-    syncVisualsToState(newLogicalState, cubeGroup);
+    const scrambleMoves = getScramble();
+    console.log("Scramble string:", scrambleMoves);
+    
+    // Animate the scramble
+    animateMoveSequence(scrambleMoves, scene, () => {
+        // After scrambling is visually complete, the game is ready
+        // (This state management can be improved in cube-state.js)
+    });
 }
 
-function createVisualCubie(x, y, z) {
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const materials = [new THREE.MeshLambertMaterial({color: new THREE.Color(getCssColor('--color-right'))}), new THREE.MeshLambertMaterial({color: new THREE.Color(getCssColor('--color-left'))}), new THREE.MeshLambertMaterial({color: new THREE.Color(getCssColor('--color-up'))}), new THREE.MeshLambertMaterial({color: new THREE.Color(getCssColor('--color-down'))}), new THREE.MeshLambertMaterial({color: new THREE.Color(getCssColor('--color-front'))}), new THREE.MeshLambertMaterial({color: new THREE.Color(getCssColor('--color-back'))})];
-    const insideColor = new THREE.Color(getCssColor('--color-inside'));
-    if (x !== 1) materials[0].color.set(insideColor); if (x !== -1) materials[1].color.set(insideColor); if (y !== 1) materials[2].color.set(insideColor); if (y !== -1) materials[3].color.set(insideColor); if (z !== 1) materials[4].color.set(insideColor); if (z !== -1) materials[5].color.set(insideColor);
-    const cubie = new THREE.Mesh(geometry, materials);
-    cubie.name = `cubie_${x}_${y}_${z}`;
-    return cubie;
+export function solveCube(scene) {
+    if (isRotating()) return;
+    stopClock();
+    
+    const solutionMoves = getSolution();
+    if (!solutionMoves) {
+        console.log("Cube is already solved.");
+        return;
+    }
+    
+    console.log("Solving cube with moves:", solutionMoves);
+    animateMoveSequence(solutionMoves, scene, () => {
+        console.log("Solve complete!");
+    });
 }
 
-function getCssColor(varName){return getComputedStyle(document.documentElement).getPropertyValue(varName).trim()||"#FF00FF"}
-export function updateCubeColors() { /* Not implemented yet */ }
+function getCssColor(varName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || '#FF00FF';
+}
+
+// User interaction logic is now much simpler
+export function rotateFace(clickedObject, dragDirection, scene, onRotationComplete) {
+    // This part is now very complex because we need to map a visual drag to a logical move (U, F, R', etc.)
+    // This is a major feature in itself. For now, we'll leave it disabled to focus on the solver.
+    console.log("Manual rotation is complex with the new architecture and needs to be reimplemented.");
+    onRotationComplete(); // Re-enable controls immediately
+}
