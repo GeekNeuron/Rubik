@@ -1,3 +1,4 @@
+// The imports are now correct and will find their exported functions.
 import { updateBackgroundColor } from './three-scene.js';
 import { updateCubeColors } from './cube.js';
 
@@ -30,10 +31,6 @@ function initTheme() {
     });
 }
 
-/**
- * Updates the theme switcher's sun/moon icon.
- * @param {string} theme - The current theme ('light' or 'dark').
- */
 function updateThemeIcon(theme) {
     const themeIconElement = document.getElementById('theme-icon');
     if (!themeIconElement) return;
@@ -43,59 +40,34 @@ function updateThemeIcon(theme) {
 }
 
 // --- Timer Logic ---
-
-let timerInterval = null;
+let timerInterval;
 let seconds = 0;
 let timerHistory = JSON.parse(localStorage.getItem('timerHistory')) || [];
 
-/**
- * Initializes the timer display.
- */
 function initTimer() {
     const timerElement = document.getElementById('timer');
     if (timerElement) {
         timerElement.addEventListener('click', showHistoryModal);
     }
-    resetClock(); // Set initial time to 00:00:00
+    resetClock();
 }
 
-function formatTime(sec) {
-    const h = String(Math.floor(sec / 3600)).padStart(2, '0');
-    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-    const s = String(sec % 60).padStart(2, '0');
-    return `${h}:${m}:${s}`;
-}
-
-/**
- * Starts the timer.
- */
 export function startClock() {
-    if (timerInterval) return; // Prevent multiple intervals
-    console.log("Timer started!");
+    if (timerInterval) return;
     timerInterval = setInterval(() => {
         seconds++;
         document.getElementById('timer').textContent = formatTime(seconds);
     }, 1000);
 }
 
-/**
- * Stops the timer and saves the result to history.
- */
 export function stopClock() {
     if (!timerInterval) return;
-
-    console.log(`Timer stopped! Final time: ${formatTime(seconds)}`);
     clearInterval(timerInterval);
     timerInterval = null;
-    
-    // Save the time to history
     timerHistory.push({ time: seconds, date: new Date().toLocaleString('en-US') });
     localStorage.setItem('timerHistory', JSON.stringify(timerHistory));
 }
 
-/**
- * Resets the timer to zero.
- */
 export function resetClock() {
     if (timerInterval) {
         clearInterval(timerInterval);
@@ -105,13 +77,22 @@ export function resetClock() {
     document.getElementById('timer').textContent = formatTime(seconds);
 }
 
-// --- Modal Logic ---
+function formatTime(sec) {
+    const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
 
+// --- Modal Logic ---
 function initModals() {
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
-    if(settingsBtn && settingsModal) {
-        settingsBtn.addEventListener('click', () => settingsModal.classList.add('show'));
+    if (settingsBtn && settingsModal) {
+        settingsBtn.addEventListener('click', () => {
+            populateColorSettings();
+            settingsModal.classList.add('show');
+        });
     }
     
     document.querySelectorAll('.close-button').forEach(btn => {
@@ -122,6 +103,34 @@ function initModals() {
         if (event.target.classList.contains('modal')) {
             event.target.classList.remove('show');
         }
+    });
+}
+
+function populateColorSettings() {
+    const colorSettingsDiv = document.querySelector('.color-settings');
+    if (!colorSettingsDiv) return;
+    colorSettingsDiv.innerHTML = '';
+    const faces = [
+        { name: 'Up', var: '--color-up' }, { name: 'Down', var: '--color-down' },
+        { name: 'Front', var: '--color-front' }, { name: 'Back', var: '--color-back' },
+        { name: 'Left', var: '--color-left' }, { name: 'Right', var: '--color-right' }
+    ];
+
+    faces.forEach(face => {
+        const group = document.createElement('div');
+        group.className = 'color-input-group';
+        const label = document.createElement('label');
+        label.textContent = face.name;
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = getComputedStyle(document.documentElement).getPropertyValue(face.var).trim();
+        colorInput.addEventListener('input', (e) => {
+            document.documentElement.style.setProperty(face.var, e.target.value);
+            // The live update is complex, so we call a placeholder function
+            updateCubeColors(); 
+        });
+        group.append(label, colorInput);
+        colorSettingsDiv.appendChild(group);
     });
 }
 
