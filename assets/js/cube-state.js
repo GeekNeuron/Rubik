@@ -1,48 +1,30 @@
 import * as THREE from 'three';
 
-// --- The Logical Core of the Cube ---
-
 let pieces = [];
 let isRotatingState = false;
-// A flag to track if the game is in a "ready to start" state after a scramble.
 let gameReadyState = false;
+// Add a move history to track all moves since the last scramble
+let moveHistory = []; 
 
 /**
- * Initializes the logical state of the cube.
- */
-export function initState() {
-    pieces = [];
-    for (let x = -1; x <= 1; x++) {
-        for (let y = -1; y <= 1; y++) {
-            for (let z = -1; z <= 1; z++) {
-                if (x === 0 && y === 0 && z === 0) continue;
-                pieces.push({
-                    name: `cubie_${x}_${y}_${z}`,
-                    initialPosition: { x, y, z },
-                    position: new THREE.Vector3(x, y, z),
-                    quaternion: new THREE.Quaternion(),
-                });
-            }
-        }
-    }
-    return pieces;
-}
-
-/**
- * Resets the cube to its initial, solved state.
+ * Resets the cube to its initial, solved state and clears history.
  */
 export function resetState() {
     initState();
-    setGameReady(false); // Game is not ready to start until scrambled
+    setGameReady(false);
+    moveHistory = []; // Clear history on reset
     return pieces;
 }
 
 /**
- * Applies a move to the logical state.
+ * Applies a move to the logical state and records it.
  */
 export function applyMove(move) {
+    // Record the move before applying it
+    moveHistory.push(move);
+
     const { axis, dir } = move;
-    const angle = (Math.PI / 2) * dir * -1; // Rotation angle
+    const angle = (Math.PI / 2) * dir * -1;
     const rotationMatrix = new THREE.Matrix4();
     
     if (axis === 'y') rotationMatrix.makeRotationY(angle);
@@ -61,33 +43,65 @@ export function applyMove(move) {
 }
 
 /**
- * Applies a series of random moves to the cube to scramble it.
+ * Scrambles the cube.
  */
 export function scramble() {
-    // Always start scrambling from a solved state
-    resetState();
-    
+    resetState(); // This also clears the move history
     const moves = ['x', 'y', 'z'];
     const slices = [-1, 0, 1];
     const dirs = [-1, 1];
-    const scrambleTurnCount = 20; // Number of random turns
+    const scrambleTurnCount = 20;
 
     for (let i = 0; i < scrambleTurnCount; i++) {
         const randomAxis = moves[Math.floor(Math.random() * moves.length)];
         const randomSlice = slices[Math.floor(Math.random() * slices.length)];
         const randomDir = dirs[Math.floor(Math.random() * dirs.length)];
-        
         applyMove({ axis: randomAxis, slice: randomSlice, dir: randomDir });
     }
     
-    // Set the game state to "ready" so the timer can start on the next move
+    moveHistory = []; // Clear the history of scramble moves
     setGameReady(true);
     return pieces;
 }
 
 /**
- * Gets the names of cubies on a specific face for animation purposes.
+ * Returns the sequence of moves to solve the cube by reversing the history.
  */
+export function getSolution() {
+    const solutionMoves = [];
+    // Go through the history in reverse
+    for (let i = moveHistory.length - 1; i >= 0; i--) {
+        const move = moveHistory[i];
+        // Create an opposite move
+        solutionMoves.push({
+            ...move,
+            dir: move.dir * -1 // Reverse the direction
+        });
+    }
+    moveHistory = []; // Clear history after getting the solution
+    return solutionMoves;
+}
+
+
+// --- Unchanged Functions from here ---
+export function initState() {
+    pieces = [];
+    for (let x = -1; x <= 1; x++) {
+        for (let y = -1; y <= 1; y++) {
+            for (let z = -1; z <= 1; z++) {
+                if (x === 0 && y === 0 && z === 0) continue;
+                pieces.push({
+                    name: `cubie_${x}_${y}_${z}`,
+                    initialPosition: { x, y, z },
+                    position: new THREE.Vector3(x, y, z),
+                    quaternion: new THREE.Quaternion(),
+                });
+            }
+        }
+    }
+    return pieces;
+}
+
 export function getCubiesOnFace(move) {
     const cubieNames = [];
     pieces.forEach(piece => {
@@ -103,13 +117,9 @@ function isPieceOnSlice(piece, move) {
     return Math.abs(piece.position[axis] - slice) < 0.1;
 }
 
-/**
- * Checks if the cube is in its solved state.
- */
 export function isSolved() {
     const identityQuaternion = new THREE.Quaternion();
     const epsilon = 0.001; 
-
     return pieces.every(piece => {
         const initialPosVec = new THREE.Vector3(piece.initialPosition.x, piece.initialPosition.y, piece.initialPosition.z);
         const positionMatches = piece.position.equals(initialPosVec);
@@ -118,7 +128,6 @@ export function isSolved() {
     });
 }
 
-// State management functions
 export const isRotating = () => isRotatingState;
 export const setRotating = (state) => { isRotatingState = state; };
 export const isGameReady = () => gameReadyState;
