@@ -1,7 +1,6 @@
 import * as THREE from 'three';
-// The imported functions from cube-state are now correct and complete
-import { applyMove, getCubiesOnFace, isRotating, setRotating, getSolution, scramble as scrambleState } from './cube-state.js';
-import { resetClock } from './ui-handler.js';
+import { applyMove, getCubiesOnFace, isRotating, setRotating, getSolution, scramble as scrambleState } from './cube-state.js?v=2';
+import { resetClock, stopClock } from './ui-handler.js';
 
 const CUBIE_SIZE = 1;
 const SPACING = 0.05;
