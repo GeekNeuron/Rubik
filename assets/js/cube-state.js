@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 
+// --- The Logical Core of the Cube ---
+
 let pieces = [];
 let isRotatingState = false;
 let gameReadyState = false;
-// Add a move history to track all moves since the last scramble
+// This will ONLY store the user's moves after a scramble.
 let moveHistory = []; 
 
 /**
@@ -30,22 +32,19 @@ export function initState() {
 /**
  * Resets the cube to its initial, solved state and clears history.
  */
-export function resetState() {
+function resetState() {
     initState();
     setGameReady(false);
-    moveHistory = []; // Clear history on reset
+    moveHistory = []; // Correctly clears history.
     return pieces;
 }
 
 /**
- * Applies a move to the logical state and records it.
+ * Applies a single move to the logical state.
+ * This function NO LONGER manages history.
+ * @param {{axis: string, slice: number, dir: number}} move
  */
-export function applyMove(move) {
-    // Record the move before applying it, but only if the game has started
-    if (!isGameReady()) {
-        moveHistory.push(move);
-    }
-
+function applySingleMove(move) {
     const { axis, dir } = move;
     const angle = (Math.PI / 2) * dir * -1;
     const rotationMatrix = new THREE.Matrix4();
@@ -61,15 +60,28 @@ export function applyMove(move) {
             piece.quaternion.premultiply(rotationQuaternion);
         }
     });
-    
+}
+
+/**
+ * This is the new public function for making a move.
+ * It applies the move AND records it to the history if the game has started.
+ */
+export function applyMove(move) {
+    // If the game is not "ready" (meaning, it's not the user's turn yet),
+    // then the move is part of the scramble or solve, so don't record it.
+    // We only record moves made by the user after the scramble.
+    if (!gameReadyState) {
+        moveHistory.push(move);
+    }
+    applySingleMove(move);
     return pieces;
 }
 
 /**
- * Scrambles the cube.
+ * Scrambles the cube. This version is now correct.
  */
 export function scramble() {
-    resetState(); 
+    resetState(); // This clears pieces and history.
     const moves = ['x', 'y', 'z'];
     const slices = [-1, 0, 1];
     const dirs = [-1, 1];
@@ -79,11 +91,11 @@ export function scramble() {
         const randomAxis = moves[Math.floor(Math.random() * moves.length)];
         const randomSlice = slices[Math.floor(Math.random() * slices.length)];
         const randomDir = dirs[Math.floor(Math.random() * dirs.length)];
-        applyMove({ axis: randomAxis, slice: randomSlice, dir: randomDir });
+        // Apply scramble moves without recording them to history
+        applySingleMove({ axis: randomAxis, slice: randomSlice, dir: randomDir });
     }
     
-    moveHistory = []; // Clear the history of scramble moves
-    setGameReady(true);
+    setGameReady(true); // Now the cube is ready for the user to play.
     return pieces;
 }
 
@@ -99,9 +111,12 @@ export function getSolution() {
             dir: move.dir * -1 // Reverse the direction
         });
     }
-    moveHistory = [];
+    moveHistory = []; // Clear history after getting the solution
     return solutionMoves;
 }
+
+
+// --- Unchanged Functions from here ---
 
 export function getCubiesOnFace(move) {
     const cubieNames = [];
@@ -132,4 +147,4 @@ export function isSolved() {
 export const isRotating = () => isRotatingState;
 export const setRotating = (state) => { isRotatingState = state; };
 export const isGameReady = () => gameReadyState;
-export const setGameReady = (state) => { isRotatingState = false; gameReadyState = state; }; // Also unlock rotation
+export const setGameReady = (state) => { gameReadyState = state; };
