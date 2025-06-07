@@ -42,6 +42,18 @@ export function initScene() {
     return scene;
 }
 
+// highlight-start
+/**
+ * Updates the scene's background color when the theme changes.
+ * This function is now correctly exported again.
+ */
+export function updateBackgroundColor() {
+    if (scene) {
+        scene.background.set(getCssColor('--body-bg'));
+    }
+}
+// highlight-end
+
 function onPointerDown(event) {
     if (isRotating()) return;
     const canvasBounds = renderer.domElement.getBoundingClientRect();
