@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 import { rotateFace } from './cube.js';
-import { isRotating, isSolved, isGameReady, setGameReady } from './cube-state.js';
+import { isRotating, isSolved, isGameReady, setGameReady } from './cube-state.js?v=2';
 import { startClock, stopClock } from './ui-handler.js';
 
 let scene, camera, renderer, controls;
