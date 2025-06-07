@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 import { rotateFace } from './cube.js';
-import { isRotating, isSolved, isGameReady, setGameReady } from './cube-state.js?v=2';
+import { isRotating, isSolved, isGameReady, setGameReady } from './cube-state.js';
 import { startClock, stopClock } from './ui-handler.js';
 
 let scene, camera, renderer, controls;
@@ -80,7 +80,6 @@ function onPointerUp() {
             ? (moveDirection.x > 0 ? 'RIGHT' : 'LEFT')
             : (moveDirection.y > 0 ? 'DOWN' : 'UP');
             
-        // Pass the 'camera' object to the rotateFace function
         rotateFace(intersectedObject, dragDirection, scene, camera, () => {
             controls.enabled = true;
             
@@ -92,7 +91,7 @@ function onPointerUp() {
             if (isSolved()) {
                 stopClock();
                 console.log("CONGRATULATIONS! The cube is solved!");
-                alert("شما مکعب را حل کردید!"); 
+                alert("You solved the cube!"); 
             }
         });
     } else {
