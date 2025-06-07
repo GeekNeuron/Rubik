@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 import { rotateFace } from './cube.js';
-// Import isSolved along with isRotating
-import { isRotating, isSolved } from './cube-state.js';
+import { isRotating, isSolved, isGameReady, setGameReady } from './cube-state.js';
+import { startClock, stopClock } from './ui-handler.js';
 
 let scene, camera, renderer, controls;
 const raycaster = new THREE.Raycaster();
@@ -80,25 +80,25 @@ function onPointerUp() {
             ? (moveDirection.x > 0 ? 'RIGHT' : 'LEFT')
             : (moveDirection.y > 0 ? 'DOWN' : 'UP');
             
-        // Call the rotation function with a new callback
         rotateFace(intersectedObject, dragDirection, scene, () => {
             controls.enabled = true;
             
-            // After the move is complete, check if the cube is solved
+            // If the game was ready (just scrambled), start the clock on the first move.
+            if (isGameReady()) {
+                startClock();
+                setGameReady(false); // Set to false so the timer doesn't restart on subsequent moves.
+            }
+
+            // Check if the cube is solved after the move.
             if (isSolved()) {
+                stopClock();
                 console.log("CONGRATULATIONS! The cube is solved!");
-                // We can later trigger a nice animation or modal here.
-                alert("شما مکعب را حل کردید!"); 
-            } else {
-                console.log("Cube is not solved yet.");
+                alert("You solved the cube!"); 
             }
         });
     } else {
-        // If the drag was too short, just re-enable controls
         controls.enabled = true;
     }
-
-    // Cleanup
     isDragging = false;
     intersectedObject = null;
     moveDirection.set(0, 0);
