@@ -5,6 +5,7 @@ import { resetClock, stopClock } from './ui-handler.js';
 const CUBIE_SIZE = 1;
 const SPACING = 0.05;
 
+// The function to create the visual cube group remains the same
 export function createRubiksCubeGroup(logicalState) {
     const cubeGroup = new THREE.Group();
     cubeGroup.name = "RubiksCube";
@@ -17,12 +18,16 @@ export function createRubiksCubeGroup(logicalState) {
     return cubeGroup;
 }
 
-export function rotateFace(clickedObject, dragDirection, scene, onRotationComplete) {
+// rotateFace now accepts 'camera' as a parameter
+export function rotateFace(clickedObject, dragDirection, scene, camera, onRotationComplete) {
     if (isRotating()) return;
     const faceNormal = clickedObject.face.normal;
     const worldPosition = new THREE.Vector3();
     clickedObject.object.getWorldPosition(worldPosition);
-    const move = getRotationInfo(faceNormal, worldPosition, dragDirection, scene.getObjectByName("RubiksCube").quaternion);
+    
+    // Pass the camera object down to getRotationInfo
+    const move = getRotationInfo(faceNormal, worldPosition, dragDirection, scene.getObjectByName("RubiksCube").quaternion, camera);
+    
     if (!move) {
         onRotationComplete();
         return;
@@ -35,7 +40,8 @@ export function rotateFace(clickedObject, dragDirection, scene, onRotationComple
     });
 }
 
-export function solveCube(scene) {
+// solveCube also needs to pass the camera to its rotation calls
+export function solveCube(scene, camera) {
     if (isRotating()) return;
     stopClock();
     
@@ -85,7 +91,7 @@ function animateRotation(cubieNames, cubeGroup, scene, move, onComplete) {
     });
     const startQuaternion = new THREE.Quaternion();
     const endQuaternion = new THREE.Quaternion().setFromAxisAngle(move.rotationAxis, move.angle);
-    const duration = 150; // Faster animation for solver
+    const duration = 150;
     let startTime = null;
     function step(timestamp) {
         if (!startTime) startTime = timestamp;
@@ -115,7 +121,8 @@ export function syncVisualsToState(logicalState, cubeGroup) {
     });
 }
 
-function getRotationInfo(faceNormal, worldPosition, dragDirection, cubeQuaternion) {
+// getRotationInfo now accepts 'camera' as a parameter
+function getRotationInfo(faceNormal, worldPosition, dragDirection, cubeQuaternion, camera) {
     const move = { axis: '', slice: 0, dir: 1 };
     const normal = faceNormal.clone().applyQuaternion(cubeQuaternion).round();
 
@@ -123,15 +130,16 @@ function getRotationInfo(faceNormal, worldPosition, dragDirection, cubeQuaternio
         move.axis = 'y'; move.slice = Math.round(worldPosition.y / (1 + SPACING));
         const cameraDirection = new THREE.Vector3();
         camera.getWorldDirection(cameraDirection);
+        // This complex logic determines rotation direction based on camera view
         if (Math.abs(cameraDirection.x) > Math.abs(cameraDirection.z)) {
-            move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.y) * Math.sign(cameraDirection.x) : (dragDirection === 'LEFT' ? -1 : 1) * Math.sign(normal.y) * Math.sign(cameraDirection.x);
+             move.dir = (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y) * -Math.sign(cameraDirection.x) : (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.y);
         } else {
-            move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.y) * Math.sign(cameraDirection.z) : (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y) * Math.sign(cameraDirection.z);
+             move.dir = (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y) * -Math.sign(cameraDirection.z) : (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.y);
         }
     } else if (Math.abs(normal.x) > 0.5) {
         move.axis = 'x'; move.slice = Math.round(worldPosition.x / (1 + SPACING));
         move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.x) : (dragDirection === 'LEFT' ? -1 : 1) * Math.sign(normal.x);
-    } else {
+    } else { // Z-face
         move.axis = 'z'; move.slice = Math.round(worldPosition.z / (1 + SPACING));
         move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.z) : (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.z);
     }
