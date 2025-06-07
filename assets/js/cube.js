@@ -62,27 +62,29 @@ export function createRubiksCubeGroup(logicalState) {
  * This now delegates the hard work to the logical state manager.
  */
 export function rotateFace(clickedObject, dragDirection, scene, onRotationComplete) {
-    if (isRotating) return;
-    setRotating(true);
+    if (isRotating()) return;
 
     const faceNormal = clickedObject.face.normal;
-    const clickedCubie = clickedObject.object;
-    
-    const move = getRotationInfo(faceNormal, dragDirection);
+    // Use the world position to determine which slice to rotate
+    const worldPosition = new THREE.Vector3();
+    clickedObject.object.getWorldPosition(worldPosition);
+
+    const move = getRotationInfo(faceNormal, worldPosition, dragDirection, scene.getObjectByName("RubiksCube").quaternion);
     if (!move) {
-        setRotating(false);
         onRotationComplete();
         return;
     }
+    
+    setRotating(true);
     
     // Apply the move to the logical state first
     const newLogicalState = applyMove(move);
     
     // Now, animate the visual representation to match the new logical state
     const cubeGroup = scene.getObjectByName("RubiksCube");
-    const cubiesToAnimate = getCubiesOnFace(move.axis, clickedCubie.position);
+    const cubiesToAnimate = getCubiesOnFace(move);
 
-    animateRotation(cubiesToAnimate, newLogicalState, cubeGroup, move, () => {
+    animateRotation(cubiesToAnimate, cubeGroup, scene, move, () => {
         // After animation, do a final sync to eliminate any floating point errors
         syncVisualsToState(newLogicalState, cubeGroup);
         setRotating(false);
@@ -93,11 +95,11 @@ export function rotateFace(clickedObject, dragDirection, scene, onRotationComple
 /**
  * Animates the visual rotation of the cubies.
  */
-function animateRotation(cubiesToAnimate, logicalState, cubeGroup, move, onComplete) {
+function animateRotation(cubieNames, cubeGroup, scene, move, onComplete) {
     const pivot = new THREE.Group();
     scene.add(pivot);
 
-    cubiesToAnimate.forEach(name => {
+    cubieNames.forEach(name => {
         const cubieObject = cubeGroup.getObjectByName(name);
         if (cubieObject) {
             pivot.attach(cubieObject);
@@ -107,7 +109,7 @@ function animateRotation(cubiesToAnimate, logicalState, cubeGroup, move, onCompl
     const startQuaternion = new THREE.Quaternion();
     const endQuaternion = new THREE.Quaternion().setFromAxisAngle(move.rotationAxis, move.angle);
     
-    const duration = 300;
+    const duration = 300; // 300ms
     let startTime = null;
 
     function step(timestamp) {
@@ -141,11 +143,12 @@ export function syncVisualsToState(logicalState, cubeGroup) {
         const cubieObject = cubeGroup.getObjectByName(piece.name);
         if (cubieObject) {
             // Set position based on the LOGICAL coordinates, not a previous visual state
-            cubieObject.position.set(
+            const visualPos = new THREE.Vector3(
                 piece.position.x * (CUBIE_SIZE + SPACING),
                 piece.position.y * (CUBIE_SIZE + SPACING),
                 piece.position.z * (CUBIE_SIZE + SPACING)
             );
+            cubieObject.position.copy(visualPos);
             // Set rotation directly from the logical quaternion
             cubieObject.quaternion.copy(piece.quaternion);
         }
@@ -155,37 +158,49 @@ export function syncVisualsToState(logicalState, cubeGroup) {
 
 /**
  * Determines the move to be made based on user interaction.
- * @returns {{axis: string, slice: number, dir: number, rotationAxis: THREE.Vector3, angle: number}}
+ * This logic has been made more robust.
  */
-function getRotationInfo(faceNormal, dragDirection) {
-    let axis = '';
-    let slice = 0;
-    let dir = 1;
+function getRotationInfo(faceNormal, worldPosition, dragDirection, cubeQuaternion) {
+    const move = { axis: '', slice: 0, dir: 1 };
+    
+    // Determine the dominant axis of the face normal in world space
+    const normal = faceNormal.clone().applyQuaternion(cubeQuaternion).round();
 
-    const roundedNormal = new THREE.Vector3(Math.round(faceNormal.x), Math.round(faceNormal.y), Math.round(faceNormal.z));
-
-    if (roundedNormal.y !== 0) { // Top or Bottom face
-        axis = 'y';
-        slice = roundedNormal.y;
-        dir = (dragDirection === 'LEFT' || dragDirection === 'RIGHT') ? (roundedNormal.y > 0 ? 1 : -1) : (roundedNormal.y > 0 ? -1 : 1);
-        if (dragDirection === 'RIGHT' || dragDirection === 'DOWN') dir *= -1;
-    } else if (roundedNormal.x !== 0) { // Left or Right face
-        axis = 'x';
-        slice = roundedNormal.x;
-        dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? (roundedNormal.x > 0 ? -1 : 1) : 1;
-        if (dragDirection === 'LEFT' || dragDirection === 'DOWN') dir *= -1;
-    } else if (roundedNormal.z !== 0) { // Front or Back face
-        axis = 'z';
-        slice = roundedNormal.z;
-        dir = (dragDirection === 'UP' || dragDirection === 'DOWN') ? 1 : -1;
-        if (dragDirection === 'RIGHT' || dragDirection === 'UP') dir *= -1;
+    if (normal.y !== 0) {
+        move.axis = 'y';
+        move.slice = Math.round(worldPosition.y / (CUBIE_SIZE + SPACING));
+        if (dragDirection === 'LEFT' || dragDirection === 'RIGHT') {
+            move.dir = (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y);
+        } else { // UP or DOWN
+            // This is complex and depends on camera view, needs refinement
+            return null; // For now, disable vertical drags on horizontal faces
+        }
+    } else if (normal.x !== 0) {
+        move.axis = 'x';
+        move.slice = Math.round(worldPosition.x / (CUBIE_SIZE + SPACING));
+        if (dragDirection === 'UP' || dragDirection === 'DOWN') {
+            move.dir = (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.x);
+        } else {
+            return null;
+        }
+    } else if (normal.z !== 0) {
+        move.axis = 'z';
+        move.slice = Math.round(worldPosition.z / (CUBIE_SIZE + SPACING));
+         if (dragDirection === 'UP' || dragDirection === 'DOWN') {
+            move.dir = (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.z);
+        } else {
+             move.dir = (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.z);
+        }
+    } else {
+        return null;
     }
+    
+    move.rotationAxis = new THREE.Vector3(move.axis === 'x' ? 1 : 0, move.axis === 'y' ? 1 : 0, move.axis === 'z' ? 1 : 0);
+    move.angle = move.dir * Math.PI / 2;
 
-    const rotationAxis = new THREE.Vector3(axis === 'x' ? 1 : 0, axis === 'y' ? 1 : 0, axis === 'z' ? 1 : 0);
-    const angle = (Math.PI / 2) * dir * slice;
-
-    return { axis, slice, dir, rotationAxis, angle };
+    return move;
 }
+
 
 function getCssColor(varName) {
     return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || '#FF00FF';
