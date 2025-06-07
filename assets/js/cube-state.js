@@ -60,11 +60,9 @@ function applySingleMove(move) {
 }
 
 /**
- * This is the public function for making a move.
- * It applies the move AND records it to the history if the game has started.
+ * The public function for making a move. It applies the move AND records it to the history.
  */
 export function applyMove(move) {
-    // We only record moves made by the user after the scramble.
     if (gameReadyState) {
         moveHistory.push(move);
     }
@@ -111,7 +109,6 @@ export function getSolution() {
 
 /**
  * Gets the names of cubies on a specific face for animation purposes.
- * This function is now correctly exported.
  */
 export function getCubiesOnFace(move) {
     const cubieNames = [];
