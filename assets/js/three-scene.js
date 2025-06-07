@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 import { rotateFace } from './cube.js';
-import { isRotating } from './cube-state.js';
+// Import isSolved along with isRotating
+import { isRotating, isSolved } from './cube-state.js';
 
 let scene, camera, renderer, controls;
 const raycaster = new THREE.Raycaster();
@@ -42,17 +43,11 @@ export function initScene() {
     return scene;
 }
 
-// highlight-start
-/**
- * Updates the scene's background color when the theme changes.
- * This function is now correctly exported again.
- */
 export function updateBackgroundColor() {
     if (scene) {
         scene.background.set(getCssColor('--body-bg'));
     }
 }
-// highlight-end
 
 function onPointerDown(event) {
     if (isRotating()) return;
@@ -84,12 +79,26 @@ function onPointerUp() {
         let dragDirection = Math.abs(moveDirection.x) > Math.abs(moveDirection.y)
             ? (moveDirection.x > 0 ? 'RIGHT' : 'LEFT')
             : (moveDirection.y > 0 ? 'DOWN' : 'UP');
+            
+        // Call the rotation function with a new callback
         rotateFace(intersectedObject, dragDirection, scene, () => {
             controls.enabled = true;
+            
+            // After the move is complete, check if the cube is solved
+            if (isSolved()) {
+                console.log("CONGRATULATIONS! The cube is solved!");
+                // We can later trigger a nice animation or modal here.
+                alert("شما مکعب را حل کردید!"); 
+            } else {
+                console.log("Cube is not solved yet.");
+            }
         });
     } else {
+        // If the drag was too short, just re-enable controls
         controls.enabled = true;
     }
+
+    // Cleanup
     isDragging = false;
     intersectedObject = null;
     moveDirection.set(0, 0);
