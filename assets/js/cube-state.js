@@ -7,6 +7,27 @@ let gameReadyState = false;
 let moveHistory = []; 
 
 /**
+ * Initializes the logical state of the cube.
+ */
+export function initState() {
+    pieces = [];
+    for (let x = -1; x <= 1; x++) {
+        for (let y = -1; y <= 1; y++) {
+            for (let z = -1; z <= 1; z++) {
+                if (x === 0 && y === 0 && z === 0) continue;
+                pieces.push({
+                    name: `cubie_${x}_${y}_${z}`,
+                    initialPosition: { x, y, z },
+                    position: new THREE.Vector3(x, y, z),
+                    quaternion: new THREE.Quaternion(),
+                });
+            }
+        }
+    }
+    return pieces;
+}
+
+/**
  * Resets the cube to its initial, solved state and clears history.
  */
 export function resetState() {
@@ -20,8 +41,10 @@ export function resetState() {
  * Applies a move to the logical state and records it.
  */
 export function applyMove(move) {
-    // Record the move before applying it
-    moveHistory.push(move);
+    // Record the move before applying it, but only if the game has started
+    if (!isGameReady()) {
+        moveHistory.push(move);
+    }
 
     const { axis, dir } = move;
     const angle = (Math.PI / 2) * dir * -1;
@@ -46,7 +69,7 @@ export function applyMove(move) {
  * Scrambles the cube.
  */
 export function scramble() {
-    resetState(); // This also clears the move history
+    resetState(); 
     const moves = ['x', 'y', 'z'];
     const slices = [-1, 0, 1];
     const dirs = [-1, 1];
@@ -69,37 +92,15 @@ export function scramble() {
  */
 export function getSolution() {
     const solutionMoves = [];
-    // Go through the history in reverse
     for (let i = moveHistory.length - 1; i >= 0; i--) {
         const move = moveHistory[i];
-        // Create an opposite move
         solutionMoves.push({
             ...move,
             dir: move.dir * -1 // Reverse the direction
         });
     }
-    moveHistory = []; // Clear history after getting the solution
+    moveHistory = [];
     return solutionMoves;
-}
-
-
-// --- Unchanged Functions from here ---
-export function initState() {
-    pieces = [];
-    for (let x = -1; x <= 1; x++) {
-        for (let y = -1; y <= 1; y++) {
-            for (let z = -1; z <= 1; z++) {
-                if (x === 0 && y === 0 && z === 0) continue;
-                pieces.push({
-                    name: `cubie_${x}_${y}_${z}`,
-                    initialPosition: { x, y, z },
-                    position: new THREE.Vector3(x, y, z),
-                    quaternion: new THREE.Quaternion(),
-                });
-            }
-        }
-    }
-    return pieces;
 }
 
 export function getCubiesOnFace(move) {
@@ -131,4 +132,4 @@ export function isSolved() {
 export const isRotating = () => isRotatingState;
 export const setRotating = (state) => { isRotatingState = state; };
 export const isGameReady = () => gameReadyState;
-export const setGameReady = (state) => { gameReadyState = state; };
+export const setGameReady = (state) => { isRotatingState = false; gameReadyState = state; }; // Also unlock rotation
