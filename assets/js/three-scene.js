@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 import { rotateFace } from './cube.js';
-import { isRotating, isSolved, isGameReady, setGameReady } from './cube-state.js';
-import { startClock, stopClock } from './ui-handler.js';
+import { isRotating, isSolved, isGameReady, setGameReady, clearHistory } from './cube-state.js';
+import { startClock, stopClock, showToast, t } from './ui-handler.js';
 
 let scene, camera, renderer, controls;
 const raycaster = new THREE.Raycaster();
@@ -49,6 +49,10 @@ export function updateBackgroundColor() {
     }
 }
 
+export function getCamera() {
+    return camera;
+}
+
 function onPointerDown(event) {
     if (isRotating()) return;
     const canvasBounds = renderer.domElement.getBoundingClientRect();
@@ -90,8 +94,9 @@ function onPointerUp() {
 
             if (isSolved()) {
                 stopClock();
+                clearHistory();
                 console.log("CONGRATULATIONS! The cube is solved!");
-                alert("You solved the cube!"); 
+                showToast(t('solvedByUser'));
             }
         });
     } else {

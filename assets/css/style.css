@@ -66,6 +66,9 @@ body {
     top: 15px;
     left: 15px;
     z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 #theme-switcher {
@@ -80,6 +83,18 @@ body {
 }
 #theme-switcher:hover { background-color: rgba(128,128,128,0.2); }
 #theme-icon { stroke: var(--theme-switcher-icon-color); }
+
+#lang-switcher {
+    background: none;
+    border: 1px solid var(--panel-border);
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 14px;
+    font-size: 0.75em;
+    font-weight: bold;
+}
+#lang-switcher:hover { background-color: rgba(128,128,128,0.2); }
 
 /* Desktop Layout */
 .controls-panel {
@@ -109,7 +124,8 @@ body {
 }
 .timer-box:hover { background-color: rgba(128,128,128,0.1); }
 
-.buttons-group { display: flex; gap: 10px; }
+.buttons-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.buttons-group:first-of-type { margin-top: 0; }
 
 .btn {
     background-color: var(--button-bg);
@@ -125,6 +141,12 @@ body {
 }
 .btn:hover { background-color: var(--button-hover-bg); transform: translateY(-2px); }
 .btn:active { transform: translateY(0); }
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+.btn:disabled:hover { background-color: var(--button-bg); }
 
 /* Modal Styles */
 .modal {
@@ -172,6 +194,7 @@ body {
 }
 .color-input-group { display: flex; align-items: center; gap: 8px; }
 .color-input-group label { font-size: 0.9em; }
+.settings-io { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
 .color-input-group input[type="color"] {
     width: 40px;
     height: 40px;
@@ -187,6 +210,151 @@ footer {
     font-size: 0.8em;
     padding-bottom: 5px;
     opacity: 0.7;
+}
+
+/* Toast notifications (replaces blocking alert() popups) */
+.toast {
+    position: fixed;
+    bottom: 110px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background-color: var(--panel-bg);
+    color: var(--text-color);
+    border: 1px solid var(--panel-border);
+    padding: 12px 22px;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+    font-weight: bold;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Physical cube solver & tutorial */
+.ps-modal-content {
+    max-width: 420px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+.ps-intro { font-size: 0.85em; opacity: 0.8; margin-bottom: 12px; }
+.ps-orientation-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text-color); margin-bottom: 4px; }
+.ps-hold-icon { width: 100px; height: auto; }
+.ps-orientation-svg { width: 100%; max-width: 320px; height: auto; }
+.ps-orientation-caption { font-size: 0.75em; opacity: 0.65; text-align: center; margin-bottom: 14px; }
+.ps-palette { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+.ps-swatch {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2px solid var(--panel-border); cursor: pointer;
+}
+.ps-swatch.active { border-color: var(--text-color); box-shadow: 0 0 0 2px var(--panel-bg), 0 0 0 4px var(--text-color); }
+.ps-net {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    justify-items: center;
+    margin: 0 auto 14px;
+    max-width: 360px;
+}
+.ps-face { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.ps-cell {
+    width: 22px; height: 22px; border: 1px solid rgba(0,0,0,0.25);
+    cursor: pointer; padding: 0;
+}
+.ps-cell.ps-center { border: 2px solid var(--text-color); cursor: default; }
+.ps-spacer { width: 100%; height: 100%; }
+.ps-status { color: #c0392b; font-size: 0.85em; text-align: center; min-height: 1.2em; margin-bottom: 8px; }
+.ps-actions { display: flex; gap: 10px; justify-content: center; }
+.ps-loading { text-align: center; padding: 30px 10px; opacity: 0.8; }
+.ps-move-list {
+    display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+    margin-bottom: 14px; max-height: 140px; overflow-y: auto; direction: ltr;
+}
+.ps-move {
+    font-family: monospace; font-size: 0.95em; padding: 3px 7px;
+    border-radius: 6px; background: var(--button-bg); opacity: 0.6;
+    cursor: pointer; border: none; color: var(--text-color);
+}
+.ps-move:hover { opacity: 0.85; }
+.ps-move.current { opacity: 1; background: var(--button-hover-bg); font-weight: bold; }
+.ps-move.done { opacity: 0.35; text-decoration: line-through; }
+.ps-playback-controls { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
+.ps-copy-btn { display: block; margin: 0 auto 10px; font-size: 0.8em; }
+.ps-progress { text-align: center; font-size: 0.85em; opacity: 0.7; direction: ltr; }
+.tut-level-heading { margin: 14px 0 6px; font-size: 1em; }
+.tut-suggestion {
+    background: var(--button-hover-bg); border-radius: 10px; padding: 10px 12px;
+    font-size: 0.85em; margin-bottom: 10px; line-height: 1.5;
+}
+.tut-suggestion-clickable { cursor: pointer; }
+.tut-lesson-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+.tut-lesson-row {
+    text-align: start; padding: 8px 12px; border-radius: 8px;
+    background: var(--button-bg); border: none; color: var(--text-color); cursor: pointer;
+}
+.tut-lesson-row:hover { background: var(--button-hover-bg); }
+.tut-notation { font-family: monospace; text-align: center; font-size: 1.1em; margin-bottom: 12px; direction: ltr; }
+
+.tut-tabs { display: flex; gap: 8px; margin-bottom: 14px; border-bottom: 1px solid var(--panel-border); }
+.tut-tab {
+    flex: 1; background: none; border: none; padding: 8px 4px; font-size: 0.85em;
+    color: var(--text-color); opacity: 0.6; cursor: pointer; border-bottom: 2px solid transparent;
+}
+.tut-tab.active { opacity: 1; border-bottom-color: var(--text-color); font-weight: bold; }
+.tut-step-progress { text-align: center; font-size: 0.8em; opacity: 0.6; margin-bottom: 4px; direction: ltr; }
+.tut-step-body { font-size: 0.88em; line-height: 1.7; margin-bottom: 12px; }
+.tut-check-btn { display: block; margin: 0 auto 8px; }
+.tut-check-result { text-align: center; font-size: 0.85em; min-height: 1.3em; margin-bottom: 10px; }
+.tut-check-result.pass { color: #27ae60; }
+.tut-check-result.fail { color: #c0392b; }
+.tut-step-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.tut-step-nav .btn { flex: 1; }
+.tut-step-nav .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Speed Timer */
+.st-scramble { font-family: monospace; text-align: center; font-size: 0.95em; margin-bottom: 10px; letter-spacing: 0.5px; direction: ltr; }
+.st-tap-area {
+    background: var(--button-bg); border-radius: 14px; padding: 30px 10px;
+    text-align: center; margin-bottom: 14px; user-select: none; touch-action: none;
+    transition: background-color 0.15s ease;
+}
+.st-tap-area.st-holding { background: #d9822b55; }
+.st-tap-area.st-ready { background: #2ecc7166; }
+.st-tap-area.st-running { background: #2ecc7133; }
+.st-tap-area.st-inspecting { background: #3498db44; }
+.st-inspection-toggle {
+    display: flex; align-items: center; gap: 8px; font-size: 0.8em;
+    justify-content: center; margin-bottom: 10px; cursor: pointer;
+}
+.st-display { font-size: 2.6em; font-weight: bold; font-variant-numeric: tabular-nums; }
+.st-hint { font-size: 0.75em; opacity: 0.6; margin-top: 6px; }
+.st-stats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 14px; }
+.st-stat-row {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: var(--button-bg); border-radius: 8px; padding: 6px 12px; min-width: 60px; font-size: 0.8em;
+}
+.st-actions { display: flex; gap: 10px; justify-content: center; margin-bottom: 14px; }
+.st-history { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.st-history-row {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--button-bg); border-radius: 6px; padding: 4px 10px; font-family: monospace; font-size: 0.9em;
+}
+.st-delete-btn { background: none; border: none; color: currentColor; opacity: 0.6; cursor: pointer; font-size: 1.1em; }
+.st-delete-btn:hover { opacity: 1; }
+html[dir="rtl"] .top-bar {
+    left: auto;
+    right: 15px;
+}
+html[dir="rtl"] .close-button {
+    right: auto;
+    left: 15px;
+}
+html[dir="rtl"] #history-list {
+    text-align: right;
 }
 
 /* Mobile Layout */

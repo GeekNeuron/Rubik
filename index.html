@@ -6,6 +6,16 @@
     <title>Rubik's Cube by GeekNeuron</title>
     <link rel="stylesheet" href="./assets/css/style.css">
 
+    <!-- Applied before first paint to avoid a language/RTL flash on load -->
+    <script>
+        (function () {
+            var saved = localStorage.getItem('lang');
+            var lang = saved || ((navigator.language || 'en').slice(0, 2) === 'fa' ? 'fa' : 'en');
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+        })();
+    </script>
+
     <!-- This import map correctly resolves module specifiers for local files -->
     <script type="importmap">
     {
@@ -19,36 +29,68 @@
 </head>
 <body>
     <div class="top-bar">
-        <button id="theme-switcher" title="Toggle Theme">
+        <button id="theme-switcher" data-i18n-title="toggleTheme" title="Toggle Theme">
             <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
         </button>
+        <button id="lang-switcher" data-i18n-title="toggleLanguage" title="Switch language">EN/FA</button>
     </div>
     <div id="scene-container"></div>
     <div class="controls-panel">
         <div id="timer" class="timer-box" title="Click to see history">00:00:00</div>
         <div class="buttons-group">
-            <button id="scramble-btn" class="btn">Scramble</button>
-            <button id="solve-btn" class="btn">Solve</button>
-            <button id="settings-btn" class="btn">Settings</button>
+            <button id="scramble-btn" class="btn" data-i18n="scramble">Scramble</button>
+            <button id="solve-btn" class="btn" data-i18n="solve">Solve</button>
+            <button id="settings-btn" class="btn" data-i18n="settings">Settings</button>
+        </div>
+        <div class="buttons-group">
+            <button id="physical-solver-btn" class="btn" data-i18n="physicalSolver">Solve My Cube</button>
+            <button id="tutorial-btn" class="btn" data-i18n="tutorial">Tutorial</button>
+            <button id="speedtimer-btn" class="btn" data-i18n="speedTimer">Speed Timer</button>
         </div>
     </div>
-    <div id="history-modal" class="modal">
+    <div id="speedtimer-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="st-title">
+        <div class="modal-content ps-modal-content">
+            <span class="close-button" role="button" tabindex="0" aria-label="Close">&times;</span>
+            <h2 id="st-title" data-i18n="speedTimerTitle">Speed Timer</h2>
+            <div id="speedtimer-body"></div>
+        </div>
+    </div>
+    <div id="physical-solver-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="ps-title">
+        <div class="modal-content ps-modal-content">
+            <span class="close-button" role="button" tabindex="0" aria-label="Close">&times;</span>
+            <h2 id="ps-title" data-i18n="physicalSolverTitle">Solve My Physical Cube</h2>
+            <div id="physical-solver-body"></div>
+        </div>
+    </div>
+    <div id="tutorial-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+        <div class="modal-content ps-modal-content">
+            <span class="close-button" role="button" tabindex="0" aria-label="Close">&times;</span>
+            <h2 id="tutorial-title" data-i18n="tutorialTitle">Tutorial</h2>
+            <div id="tutorial-body"></div>
+        </div>
+    </div>
+    <div id="history-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="history-title">
         <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2>Time History</h2>
+            <span class="close-button" role="button" tabindex="0" aria-label="Close">&times;</span>
+            <h2 id="history-title" data-i18n="historyTitle">Time History</h2>
             <ul id="history-list"></ul>
         </div>
     </div>
-    <div id="settings-modal" class="modal">
+    <div id="settings-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2>Settings</h2>
-            <p>Choose the colors for the solved faces:</p>
+            <span class="close-button" role="button" tabindex="0" aria-label="Close">&times;</span>
+            <h2 id="settings-title" data-i18n="settingsTitle">Settings</h2>
+            <p data-i18n="settingsIntro">Choose the colors for the solved faces:</p>
             <div class="color-settings"></div>
+            <div class="settings-io">
+                <button id="export-settings-btn" class="btn" data-i18n="exportSettings">Export Settings</button>
+                <button id="import-settings-btn" class="btn" data-i18n="importSettings">Import Settings</button>
+                <input type="file" id="import-settings-input" accept="application/json" hidden>
+            </div>
         </div>
     </div>
     <footer>
-        <p>Created by GeekNeuron</p>
+        <p data-i18n="footer">Created by GeekNeuron</p>
     </footer>
 
     <!-- The single entry point for the application -->

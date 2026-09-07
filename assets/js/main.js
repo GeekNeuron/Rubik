@@ -2,6 +2,9 @@ import { initScene, initInteraction } from './three-scene.js';
 import { createRubiksCubeGroup, scrambleCube, solveCube } from './cube.js';
 import { initState } from './cube-state.js';
 import { initUI } from './ui-handler.js';
+import { initPhysicalSolver } from './physical-solver-ui.js';
+import { initTutorial } from './tutorial.js';
+import { initSpeedTimer } from './speedtimer-ui.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     try {
@@ -26,6 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 6. Connect buttons, passing the scene object to them
         document.getElementById('scramble-btn').addEventListener('click', () => scrambleCube(scene));
         document.getElementById('solve-btn').addEventListener('click', () => solveCube(scene));
+        initPhysicalSolver(scene);
+        initTutorial(scene);
+        initSpeedTimer(scene);
 
         console.log("Rubik's Cube is ready! 🚀");
 
