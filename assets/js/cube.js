@@ -31,19 +31,63 @@ function createVisualCubie(x, y, z) {
  * using the "inside" color everywhere else. Shared by creation and by
  * updateCubeColors() so the two can never fall out of sync.
  */
-function buildCubieMaterials(x, y, z) {
-    const insideColor = getCssColor('--color-inside');
+/**
+ * Renders a single sticker as a canvas texture: a rounded-corner colored
+ * square inset on a dark plastic body - this is what actually reads as
+ * "rounded corners" on a cube made of flat-shaded boxes, matching how real
+ * Rubik's cubes look (rounded stickers on a black body), without needing a
+ * custom rounded 3D mesh for every cubie.
+ */
+const stickerTextureCache = new Map();
+function getStickerTexture(hexColor, isOuter) {
+    const cacheKey = hexColor + '|' + isOuter;
+    if (stickerTextureCache.has(cacheKey)) return stickerTextureCache.get(cacheKey);
 
-    const colors = [
-        x === 1 ? getCssColor('--color-right') : insideColor,
-        x === -1 ? getCssColor('--color-left') : insideColor,
-        y === 1 ? getCssColor('--color-up') : insideColor,
-        y === -1 ? getCssColor('--color-down') : insideColor,
-        z === 1 ? getCssColor('--color-front') : insideColor,
-        z === -1 ? getCssColor('--color-back') : insideColor,
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const bodyColor = getCssColor('--color-inside');
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(0, 0, size, size);
+
+    if (isOuter) {
+        const margin = size * 0.09;
+        const radius = size * 0.16;
+        const w = size - margin * 2;
+        const h = size - margin * 2;
+        ctx.fillStyle = hexColor;
+        ctx.beginPath();
+        ctx.moveTo(margin + radius, margin);
+        ctx.arcTo(margin + w, margin, margin + w, margin + h, radius);
+        ctx.arcTo(margin + w, margin + h, margin, margin + h, radius);
+        ctx.arcTo(margin, margin + h, margin, margin, radius);
+        ctx.arcTo(margin, margin, margin + w, margin, radius);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    stickerTextureCache.set(cacheKey, texture);
+    return texture;
+}
+
+function buildCubieMaterials(x, y, z) {
+    const faces = [
+        { color: getCssColor('--color-right'), outer: x === 1 },
+        { color: getCssColor('--color-left'), outer: x === -1 },
+        { color: getCssColor('--color-up'), outer: y === 1 },
+        { color: getCssColor('--color-down'), outer: y === -1 },
+        { color: getCssColor('--color-front'), outer: z === 1 },
+        { color: getCssColor('--color-back'), outer: z === -1 },
     ];
 
-    return colors.map(color => new THREE.MeshLambertMaterial({ color: new THREE.Color(color) }));
+    return faces.map(({ color, outer }) => new THREE.MeshLambertMaterial({
+        map: getStickerTexture(color, outer),
+    }));
 }
 
 /**
@@ -84,14 +128,14 @@ export function syncVisualsToState(logicalState, cubeGroup) {
 /**
  * Main function to trigger a single user rotation.
  */
-export function rotateFace(clickedObject, dragDirection, scene, camera, onRotationComplete) {
+export function rotateFace(clickedObject, dragVector, scene, camera, onRotationComplete) {
     if (isRotating()) return;
 
     const faceNormal = clickedObject.face.normal;
     const worldPosition = new THREE.Vector3();
     clickedObject.object.getWorldPosition(worldPosition);
 
-    const move = getRotationInfo(faceNormal, worldPosition, dragDirection, scene.getObjectByName("RubiksCube").quaternion, camera);
+    const move = getRotationInfo(faceNormal, worldPosition, dragVector, scene.getObjectByName("RubiksCube").quaternion, camera);
     if (!move) {
         onRotationComplete();
         return;
@@ -215,6 +259,8 @@ export function scrambleCubeInstantly(scrambleStr, scene) {
  */
 export function updateCubeColors() {
     if (!cachedCubeGroup) return;
+    stickerTextureCache.forEach(tex => tex.dispose());
+    stickerTextureCache.clear();
     cachedCubeGroup.children.forEach(cubie => {
         const parts = cubie.name.split('_');
         const x = parseInt(parts[1], 10);
@@ -222,7 +268,9 @@ export function updateCubeColors() {
         const z = parseInt(parts[3], 10);
         const materials = buildCubieMaterials(x, y, z);
         cubie.material.forEach((mat, i) => {
-            mat.color.copy(materials[i].color);
+            mat.map = materials[i].map;
+            mat.needsUpdate = true;
+            materials[i].map = null;
             materials[i].dispose();
         });
     });
@@ -418,46 +466,64 @@ function animateRotation(cubieNames, cubeGroup, scene, move, onComplete) {
     requestAnimationFrame(step);
 }
 
-function getRotationInfo(faceNormal, worldPosition, dragDirection, cubeQuaternion, camera) {
-    const move = { axis: '', slice: 0, dir: 1 };
+function getRotationInfo(faceNormal, worldPosition, dragVector, cubeQuaternion, camera) {
     const normal = faceNormal.clone().applyQuaternion(cubeQuaternion).round();
 
-    if (Math.abs(normal.y) > 0.5) { // Top or Bottom face
-        move.axis = 'y';
-        move.slice = Math.round(worldPosition.y / (CUBIE_SIZE + SPACING));
-        const cameraDirection = new THREE.Vector3();
-        camera.getWorldDirection(cameraDirection);
+    // The clicked face's own normal axis can never be the rotation axis for
+    // a drag gesture started ON that face - only the other two axes can.
+    const axisVectors = {
+        x: new THREE.Vector3(1, 0, 0),
+        y: new THREE.Vector3(0, 1, 0),
+        z: new THREE.Vector3(0, 0, 1),
+    };
+    const candidateAxes = ['x', 'y', 'z'].filter(axis => Math.abs(normal[axis]) < 0.5);
 
-        if (Math.abs(cameraDirection.x) > Math.abs(cameraDirection.z)) {
-            move.dir = (dragDirection === 'LEFT' || dragDirection === 'RIGHT')
-                ? (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y) * -Math.sign(cameraDirection.x)
-                : (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.y);
-        } else {
-            move.dir = (dragDirection === 'LEFT' || dragDirection === 'RIGHT')
-                ? (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.y) * -Math.sign(cameraDirection.z)
-                : (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.y);
+    // Screen-space right/up basis vectors, in world space, from the current
+    // camera orientation - this is what makes the drag interpretation work
+    // correctly no matter how the user has orbited the view.
+    const camRight = new THREE.Vector3();
+    const camUp = new THREE.Vector3();
+    const camForward = new THREE.Vector3();
+    camera.matrixWorld.extractBasis(camRight, camUp, camForward);
+
+    const dragNorm = dragVector.clone().normalize();
+
+    let best = null;
+    for (const axis of candidateAxes) {
+        // Instantaneous screen-space direction a point at worldPosition would
+        // move in for a small POSITIVE (right-hand rule) rotation about this
+        // axis: velocity = axis x position.
+        const tangent3D = new THREE.Vector3().crossVectors(axisVectors[axis], worldPosition);
+        if (tangent3D.lengthSq() < 1e-6) continue; // point lies on the axis itself - no info here
+        const screenX = tangent3D.dot(camRight);
+        const screenY = -tangent3D.dot(camUp); // screen Y grows downward, world/camera up is positive
+        const screenTangent = new THREE.Vector2(screenX, screenY);
+        if (screenTangent.lengthSq() < 1e-6) continue;
+        screenTangent.normalize();
+
+        const alignment = screenTangent.dot(dragNorm); // how well the drag matches a +rotation
+        if (!best || Math.abs(alignment) > Math.abs(best.alignment)) {
+            best = { axis, alignment };
         }
-    } else if (Math.abs(normal.x) > 0.5) { // Left or Right face
-        move.axis = 'x';
-        move.slice = Math.round(worldPosition.x / (CUBIE_SIZE + SPACING));
-        move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN')
-            ? (dragDirection === 'UP' ? 1 : -1) * Math.sign(normal.x)
-            : (dragDirection === 'LEFT' ? -1 : 1) * Math.sign(normal.x);
-    } else { // Front or Back face
-        move.axis = 'z';
-        move.slice = Math.round(worldPosition.z / (CUBIE_SIZE + SPACING));
-        move.dir = (dragDirection === 'UP' || dragDirection === 'DOWN')
-            ? (dragDirection === 'UP' ? -1 : 1) * Math.sign(normal.z)
-            : (dragDirection === 'LEFT' ? 1 : -1) * Math.sign(normal.z);
     }
 
-    move.rotationAxis = new THREE.Vector3(move.axis === 'x' ? 1 : 0, move.axis === 'y' ? 1 : 0, move.axis === 'z' ? 1 : 0);
+    if (!best) return null;
+
+    const axis = best.axis;
+    const slice = Math.round(worldPosition[axis] / (CUBIE_SIZE + SPACING));
+    // Our engine's dir=+1 corresponds to a NEGATIVE (clockwise, right-hand
+    // rule) rotation about the axis (see getMoveAngle) - so a drag matching
+    // the assumed-positive tangent means dir=-1, and vice versa.
+    const dir = best.alignment >= 0 ? -1 : 1;
+
+    const move = { axis, slice, dir };
+    move.rotationAxis = axisVectors[axis].clone();
     // Uses the SAME angle formula as the logical state transform (cube-state.js),
     // so the visual spin always matches where the piece actually ends up.
-    move.angle = getMoveAngle(move.dir);
+    move.angle = getMoveAngle(dir);
     return move;
 }
 
 function getCssColor(varName) {
-    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || "#FF00FF";
+    return getComputedStyle(document.body).getPropertyValue(varName).trim() || "#FF00FF";
 }

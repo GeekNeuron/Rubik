@@ -32,7 +32,7 @@ function restoreCustomColors() {
 function saveCustomColors() {
     const values = {};
     FACE_COLOR_VARS.forEach(v => {
-        values[v] = getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+        values[v] = getComputedStyle(document.body).getPropertyValue(v).trim();
     });
     try { localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(values)); } catch { /* ignore */ }
 }
@@ -185,7 +185,7 @@ function populateColorSettings() {
         const colorInput = document.createElement('input');
         colorInput.type = 'color';
         colorInput.setAttribute('aria-label', t(face.key));
-        colorInput.value = getComputedStyle(document.documentElement).getPropertyValue(face.var).trim();
+        colorInput.value = getComputedStyle(document.body).getPropertyValue(face.var).trim();
         colorInput.addEventListener('input', (e) => {
             document.documentElement.style.setProperty(face.var, e.target.value);
             updateCubeColors();

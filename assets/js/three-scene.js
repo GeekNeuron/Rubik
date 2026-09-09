@@ -29,6 +29,13 @@ export function initScene() {
     scene.add(directionalLight);
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    // Aim below the cube's actual center so the cube renders higher up in
+    // the viewport, leaving clearance at the bottom for the controls panel
+    // (otherwise it visually overlaps the lower half of the cube, especially
+    // on shorter desktop windows).
+    const verticalOffset = -1.6;
+    controls.target.set(0, verticalOffset, 0);
+    camera.lookAt(controls.target);
     function animate() {
         requestAnimationFrame(animate);
         controls.update();
@@ -80,11 +87,7 @@ function onPointerUp() {
     if (!isDragging) return;
     const dragThreshold = 30;
     if (Math.abs(moveDirection.x) > dragThreshold || Math.abs(moveDirection.y) > dragThreshold) {
-        let dragDirection = Math.abs(moveDirection.x) > Math.abs(moveDirection.y)
-            ? (moveDirection.x > 0 ? 'RIGHT' : 'LEFT')
-            : (moveDirection.y > 0 ? 'DOWN' : 'UP');
-            
-        rotateFace(intersectedObject, dragDirection, scene, camera, () => {
+        rotateFace(intersectedObject, moveDirection.clone(), scene, camera, () => {
             controls.enabled = true;
             
             if (isGameReady()) {
@@ -116,5 +119,5 @@ export function initInteraction() {
 }
 
 function getCssColor(varName) {
-    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || '#FF00FF';
+    return getComputedStyle(document.body).getPropertyValue(varName).trim() || '#FF00FF';
 }
