@@ -30,8 +30,8 @@
 
 body.dark-theme {
     /* Dark Theme */
-    --body-bg: #0b0f1a;
-    --body-bg-2: #131a2b;
+    --body-bg: #172038;
+    --body-bg-2: #212d4d;
     --text-color: #dbe2f0;
     --panel-bg: rgba(22, 27, 40, 0.78);
     --panel-border: rgba(99, 102, 241, 0.25);
@@ -50,7 +50,7 @@ body.dark-theme {
 
 /* General Styles */
 * { box-sizing: border-box; }
-html { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+html { font-family: "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 body {
     background: radial-gradient(circle at 30% 20%, var(--body-bg-2), var(--body-bg) 65%);
     color: var(--text-color);
@@ -150,6 +150,40 @@ body {
 
 .buttons-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 .buttons-group:first-of-type { margin-top: 0; }
+
+.dock {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+.dock-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 84px;
+    padding: 12px 6px 10px;
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    background-color: rgba(128, 128, 128, 0.08);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dock-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
+.dock-btn span { font-size: 0.72em; font-weight: 600; line-height: 1.15; text-align: center; }
+.dock-btn:hover { background-color: rgba(128, 128, 128, 0.16); transform: translateY(-2px); }
+.dock-btn:active { transform: translateY(0) scale(0.97); }
+.dock-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.dock-btn.primary {
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    box-shadow: var(--button-shadow);
+}
+.dock-btn.primary:hover { background: var(--button-hover-bg); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4); }
+.dock-btn.primary:disabled { background: var(--button-bg); box-shadow: none; }
 
 .btn {
     background: var(--button-bg);
@@ -369,6 +403,17 @@ footer {
     display: flex; align-items: center; gap: 8px; font-size: 0.8em;
     justify-content: center; margin-bottom: 10px; cursor: pointer;
 }
+.st-hw-status {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    font-size: 0.8em; opacity: 0.85; margin-bottom: 10px;
+}
+.st-hw-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: #8884; display: inline-block;
+    transition: background-color 0.15s ease;
+}
+.st-hw-dot.on { background: #2ecc71; box-shadow: 0 0 6px #2ecc71aa; }
+.st-hw-dot.off-line { background: #e74c3c; }
+.st-hw-hands { display: flex; gap: 6px; }
 .st-display { font-size: 2.6em; font-weight: bold; font-variant-numeric: tabular-nums; }
 .st-hint { font-size: 0.75em; opacity: 0.6; margin-top: 6px; }
 .st-stats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 14px; }
@@ -384,17 +429,6 @@ footer {
 }
 .st-delete-btn { background: none; border: none; color: currentColor; opacity: 0.6; cursor: pointer; font-size: 1.1em; }
 .st-delete-btn:hover { opacity: 1; }
-html[dir="rtl"] .top-bar {
-    left: auto;
-    right: 15px;
-}
-html[dir="rtl"] .close-button {
-    right: auto;
-    left: 15px;
-}
-html[dir="rtl"] #history-list {
-    text-align: right;
-}
 
 /* Mobile Layout */
 @media (max-width: 768px) {
@@ -418,11 +452,93 @@ html[dir="rtl"] #history-list {
     .timer-box { font-size: 1.2em; padding: 8px; text-align: center; flex-shrink: 0; }
     .buttons-group { gap: 8px; }
     .btn { padding: 10px 12px; font-size: 0.9em; }
+    .dock-btn { width: 70px; padding: 10px 4px 8px; }
     footer {
         position: fixed;
-        bottom: 85px;
+        bottom: 168px;
         width: 100%;
         text-align: center;
         font-size: 0.7em;
+    }
+}
+
+/* ---------- Smooth motion for every UI element (the cube animates itself) ---------- */
+
+@keyframes fade-slide-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes pop-in {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+body { animation: fade-in 0.4s ease; }
+.top-bar, .controls-panel { animation: fade-slide-up 0.4s ease both; }
+.dock-btn { animation: pop-in 0.3s ease both; }
+.dock-btn:nth-child(1) { animation-delay: 0.02s; }
+.dock-btn:nth-child(2) { animation-delay: 0.06s; }
+.dock-btn:nth-child(3) { animation-delay: 0.10s; }
+.dock-btn:nth-child(4) { animation-delay: 0.14s; }
+.dock-btn:nth-child(5) { animation-delay: 0.18s; }
+.dock-btn:nth-child(6) { animation-delay: 0.22s; }
+
+/* Modal inner content re-renders often (tabs, steps, views) - animate every swap. */
+#physical-solver-body > *,
+#tutorial-body > *,
+#speedtimer-body > *,
+#tut-content > * {
+    animation: fade-slide-up 0.25s ease both;
+}
+
+/* Lists / grids of repeated items - a light stagger reads as much more polished
+   than everything popping in at once. */
+.tut-lesson-row, .st-history-row, .ps-move {
+    animation: fade-slide-up 0.2s ease both;
+}
+.tut-lesson-list .tut-lesson-row:nth-child(1) { animation-delay: 0.02s; }
+.tut-lesson-list .tut-lesson-row:nth-child(2) { animation-delay: 0.05s; }
+.tut-lesson-list .tut-lesson-row:nth-child(3) { animation-delay: 0.08s; }
+.tut-lesson-list .tut-lesson-row:nth-child(4) { animation-delay: 0.11s; }
+
+.ps-face { animation: pop-in 0.3s ease both; }
+.ps-net > *:nth-child(1) { animation-delay: 0.02s; }
+.ps-net > *:nth-child(2) { animation-delay: 0.05s; }
+.ps-net > *:nth-child(3) { animation-delay: 0.08s; }
+.ps-net > *:nth-child(4) { animation-delay: 0.11s; }
+.ps-net > *:nth-child(5) { animation-delay: 0.14s; }
+.ps-net > *:nth-child(6) { animation-delay: 0.17s; }
+
+/* Smooth, consistent transitions on every interactive control. */
+.btn, .dock-btn, #theme-switcher, #lang-switcher, .close-button,
+.ps-swatch, .ps-cell, .tut-tab, .tut-lesson-row, input[type="color"],
+input[type="checkbox"], .st-history-row, .st-delete-btn {
+    transition: transform 0.15s ease, background-color 0.15s ease,
+        box-shadow 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+}
+.ps-swatch:hover { transform: scale(1.12); }
+.ps-cell:hover { filter: brightness(1.08); transform: scale(1.04); }
+.tut-lesson-row:hover { transform: translateX(3px); }
+html[dir] .tut-lesson-row:hover { transform: translateX(-3px); } /* harmless no-op safeguard if dir ever changes */
+
+/* Theme + palette changes should ease, not snap. */
+*, *::before, *::after {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 0.25s;
+    transition-timing-function: ease;
+}
+/* ...but transforms/opacity used for interaction feedback stay fast & snappy,
+   and elements that manage their OWN transition timing above keep it. */
+.dock-btn:active, .btn:active { transition-duration: 0.08s; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
     }
 }
