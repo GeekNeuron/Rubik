@@ -4,7 +4,6 @@ import * as THREE from 'three';
 
 let pieces = [];
 let isRotatingState = false;
-let gameReadyState = false;
 
 // Every move applied since the cube was last in a solved state (scramble
 // moves AND manual moves). Solve always reverses this full list, so it can
@@ -40,7 +39,6 @@ export function initState() {
         }
     }
     moveHistory = [];
-    setGameReady(false);
     return pieces;
 }
 
@@ -219,5 +217,3 @@ export function detectProgress() {
 
 export const isRotating = () => isRotatingState;
 export const setRotating = (state) => { isRotatingState = state; };
-export const isGameReady = () => gameReadyState;
-export const setGameReady = (state) => { gameReadyState = state; };

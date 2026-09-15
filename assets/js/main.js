@@ -5,6 +5,7 @@ import { initUI } from './ui-handler.js';
 import { initPhysicalSolver } from './physical-solver-ui.js';
 import { initTutorial } from './tutorial.js';
 import { initSpeedTimer } from './speedtimer-ui.js';
+import { initMoveTicker } from './move-ticker.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     try {
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 1. Initialize the UI elements (buttons, modals, theme)
         initUI();
+        initMoveTicker();
 
         // 2. Initialize the core logical state of the cube
         const logicalState = initState();

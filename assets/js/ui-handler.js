@@ -1,6 +1,8 @@
 import { updateBackgroundColor } from './three-scene.js';
 import { updateCubeColors } from './cube.js';
 import { initLanguage, t } from './i18n.js';
+import { isMoveTickerVisible, setMoveTickerVisible, getAnimationSpeed, setAnimationSpeed, getScrambleLength, setScrambleLength, isSoundEnabled, setSoundEnabled } from './settings-state.js';
+import { applyTickerVisibility } from './move-ticker.js';
 
 export { t };
 
@@ -17,6 +19,18 @@ export function initUI() {
 
 const CUSTOM_COLORS_KEY = 'customFaceColors';
 const FACE_COLOR_VARS = ['--color-up', '--color-down', '--color-front', '--color-back', '--color-left', '--color-right'];
+const DEFAULT_FACE_COLORS = {
+    '--color-up': '#ffffff', '--color-down': '#ffd500', '--color-front': '#009e60',
+    '--color-back': '#0051ba', '--color-left': '#ff5800', '--color-right': '#c41e3a',
+};
+// The Okabe-Ito palette (a well-established colorblind-safe qualitative
+// set) mapped onto the 6 faces - keeps every face pairwise distinguishable
+// under the common forms of color blindness, unlike the standard
+// red/green/orange/blue scheme.
+const COLORBLIND_FACE_COLORS = {
+    '--color-up': '#ffffff', '--color-down': '#f0e442', '--color-front': '#009e73',
+    '--color-back': '#56b4e9', '--color-left': '#d55e00', '--color-right': '#cc79a7',
+};
 
 function restoreCustomColors() {
     try {
@@ -120,21 +134,15 @@ export function setButtonsEnabled(enabled) {
     });
 }
 
-// --- Toast notifications (replaces blocking alert() popups) ---
+// --- Header messages (replaces blocking alert() popups, and sits in the
+// header rather than floating over the cube/controls) ---
 export function showToast(message, duration = 2500) {
-    let toast = document.getElementById('app-toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'app-toast';
-        toast.className = 'toast';
-        toast.setAttribute('role', 'status');
-        toast.setAttribute('aria-live', 'polite');
-        document.body.appendChild(toast);
-    }
-    toast.textContent = message;
-    toast.classList.add('show');
-    clearTimeout(toast._hideTimer);
-    toast._hideTimer = setTimeout(() => toast.classList.remove('show'), duration);
+    const el = document.getElementById('header-message');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add('show');
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => el.classList.remove('show'), duration);
 }
 
 // --- Modal Logic ---
@@ -144,6 +152,7 @@ function initModals() {
     if (settingsBtn && settingsModal) {
         settingsBtn.addEventListener('click', () => {
             populateColorSettings();
+            populatePreferenceToggles();
             settingsModal.classList.add('show');
         });
     }
@@ -194,6 +203,48 @@ function populateColorSettings() {
         group.append(label, colorInput);
         colorSettingsDiv.appendChild(group);
     });
+}
+
+function populatePreferenceToggles() {
+    const speedSelect = document.getElementById('animation-speed-select');
+    const scrambleSelect = document.getElementById('scramble-length-select');
+    const tickerToggle = document.getElementById('move-ticker-toggle');
+    const soundToggle = document.getElementById('sound-toggle');
+    const colorblindBtn = document.getElementById('colorblind-palette-btn');
+    const resetColorsBtn = document.getElementById('reset-colors-btn');
+
+    if (speedSelect) {
+        speedSelect.value = getAnimationSpeed();
+        speedSelect.onchange = () => setAnimationSpeed(speedSelect.value);
+    }
+    if (scrambleSelect) {
+        scrambleSelect.value = String(getScrambleLength());
+        scrambleSelect.onchange = () => setScrambleLength(scrambleSelect.value);
+    }
+    if (tickerToggle) {
+        tickerToggle.checked = isMoveTickerVisible();
+        tickerToggle.onchange = () => {
+            setMoveTickerVisible(tickerToggle.checked);
+            applyTickerVisibility();
+        };
+    }
+    if (soundToggle) {
+        soundToggle.checked = isSoundEnabled();
+        soundToggle.onchange = () => setSoundEnabled(soundToggle.checked);
+    }
+    if (colorblindBtn) {
+        colorblindBtn.onclick = () => applyFaceColorPalette(COLORBLIND_FACE_COLORS);
+    }
+    if (resetColorsBtn) {
+        resetColorsBtn.onclick = () => applyFaceColorPalette(DEFAULT_FACE_COLORS);
+    }
+}
+
+function applyFaceColorPalette(palette) {
+    FACE_COLOR_VARS.forEach(v => document.documentElement.style.setProperty(v, palette[v]));
+    updateCubeColors();
+    saveCustomColors();
+    populateColorSettings(); // refresh the color swatches to reflect the new values
 }
 
 function showHistoryModal() {

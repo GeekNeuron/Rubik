@@ -2,15 +2,33 @@ import * as THREE from 'three';
 import {
     applyMove, getCubiesOnFace, isRotating, setRotating, getSolution,
     resetForScramble, generateScrambleMoves, getMoveAngle,
-    clearHistory, isSolved, setGameReady, setPiecesState, getPiecesSnapshot
+    clearHistory, isSolved, setPiecesState, getPiecesSnapshot
 } from './cube-state.js';
 import { resetClock, stopClock, setButtonsEnabled, showToast, t } from './ui-handler.js';
 import { standardTokenToEngineMoves } from './physical-solver.js';
+import { moveToNotation, pushTickerMove } from './move-ticker.js';
+import { getAnimationSpeedMultiplier, getScrambleLength, isSoundEnabled } from './settings-state.js';
+import { playMoveSound } from './move-sound.js';
 
 const CUBIE_SIZE = 1;
 const SPACING = 0.05;
 const CORNER_RADIUS = 0.09;
 const GEOMETRY_SEGMENTS = 4;
+
+/** Animation duration in ms - scaled by the "Animation speed" preference
+ * in Settings (slower/normal/faster/instant). */
+function getDuration(base) {
+    return Math.max(1, Math.round(base * getAnimationSpeedMultiplier()));
+}
+
+/** Called once per applied move, from every path that can apply one
+ * (manual drag, scramble, solve/tutorial/physical-solver playback) - the
+ * one place that fans out to the footer ticker and the optional move
+ * sound, so those two never drift out of sync with each other. */
+function notifyMove(move) {
+    pushTickerMove(moveToNotation(move));
+    if (isSoundEnabled()) playMoveSound();
+}
 
 // A single rounded-box geometry template shared by every cubie (they're all
 // the same size/radius) - built once and cloned, rather than recomputed 26 times.
@@ -76,12 +94,14 @@ function createVisualCubie(x, y, z) {
  * using the "inside" color everywhere else. Shared by creation and by
  * updateCubeColors() so the two can never fall out of sync.
  *
- * Outer (sticker) faces use a glossy clearcoat material - real vinyl
- * cube stickers have a distinct shine separate from their color - while
- * inner faces (the plastic body, visible in the gaps mid-turn) use a
- * flat matte material, since bare injection-molded plastic has none of
- * that shine. The environment map + three-point lighting set up in
- * three-scene.js is what the clearcoat actually reflects.
+ * Outer (sticker) faces use a matte-ish material with a generated
+ * roughness map, so the surface isn't a uniformly smooth mirror-like
+ * gloss - real vinyl stickers have subtle micro-texture and imperfections
+ * that break up reflections unevenly. Inner faces (the plastic body,
+ * visible in the gaps mid-turn) use a flatter matte material, since bare
+ * injection-molded plastic has even less shine. The environment map +
+ * three-point lighting set up in three-scene.js is what little the
+ * remaining roughness still reflects.
  */
 function buildCubieMaterials(x, y, z) {
     const faces = [
@@ -94,29 +114,31 @@ function buildCubieMaterials(x, y, z) {
     ];
 
     return faces.map(({ color, outer }) => outer
-        ? new THREE.MeshPhysicalMaterial({
+        ? new THREE.MeshStandardMaterial({
             color: new THREE.Color(color),
             map: getStickerTexture(color),
-            roughness: 0.35,
+            roughnessMap: getRoughnessTexture(),
+            roughness: 0.75,
             metalness: 0,
-            clearcoat: 0.6,
-            clearcoatRoughness: 0.25,
+            envMapIntensity: 0.35,
         })
         : new THREE.MeshStandardMaterial({
             color: new THREE.Color(getCssColor('--color-inside')),
-            roughness: 0.85,
+            roughness: 0.9,
             metalness: 0,
+            envMapIntensity: 0.2,
         }));
 }
 
 const stickerTextureCache = new Map();
+let roughnessTextureCache = null;
 
 /**
  * A small canvas texture per sticker color: a slightly-inset rounded
- * square with a soft highlight arcing across the top - the same visual
- * cue real vinyl cube stickers have from their curved, glossy surface -
- * instead of a single flat fill color. Cached per color since every
- * cubie sharing a color can reuse the same texture.
+ * square with a very subtle diagonal sheen - instead of a single flat
+ * fill color - matching how real cube stickers don't quite reach the
+ * piece's edges. Cached per color since every cubie sharing a color can
+ * reuse the same texture.
  */
 function getStickerTexture(cssColor) {
     if (stickerTextureCache.has(cssColor)) return stickerTextureCache.get(cssColor);
@@ -135,10 +157,12 @@ function getStickerTexture(cssColor) {
     roundRectPath(ctx, inset, inset, size - inset * 2, size - inset * 2, radius);
     ctx.fill();
 
-    // Soft diagonal highlight for a subtle glossy curve.
+    // A much fainter sheen than before - most of the "shine" now comes
+    // from the roughness map's variation instead of a flat highlight
+    // baked into the color texture.
     const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, 'rgba(255,255,255,0.35)');
-    gradient.addColorStop(0.35, 'rgba(255,255,255,0.08)');
+    gradient.addColorStop(0, 'rgba(255,255,255,0.14)');
+    gradient.addColorStop(0.4, 'rgba(255,255,255,0.03)');
     gradient.addColorStop(0.6, 'rgba(255,255,255,0)');
     ctx.fillStyle = gradient;
     roundRectPath(ctx, inset, inset, size - inset * 2, size - inset * 2, radius);
@@ -147,6 +171,48 @@ function getStickerTexture(cssColor) {
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     stickerTextureCache.set(cssColor, texture);
+    return texture;
+}
+
+/**
+ * A grayscale grain texture used as every sticker's roughnessMap, so the
+ * surface's shininess varies pixel-to-pixel instead of being perfectly
+ * uniform - the actual reason a flat glossy material reads as "fake
+ * plastic": real surfaces never reflect *evenly*. One shared texture (not
+ * per-color) since roughness variation has nothing to do with hue.
+ * Three.js reads roughness from a texture's GREEN channel, but since this
+ * is drawn as true grayscale (R=G=B), it's colorSpace-safe either way.
+ */
+function getRoughnessTexture() {
+    if (roughnessTextureCache) return roughnessTextureCache;
+
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // Mid-gray base (mid roughness), then layered random speckle at a few
+    // scales for an organic, non-repeating grain rather than uniform static.
+    ctx.fillStyle = 'rgb(190,190,190)';
+    ctx.fillRect(0, 0, size, size);
+    const speckle = (count, alphaRange, sizeRange) => {
+        for (let i = 0; i < count; i++) {
+            const shade = Math.random() > 0.5 ? 255 : 0;
+            ctx.fillStyle = `rgba(${shade},${shade},${shade},${(Math.random() * alphaRange).toFixed(2)})`;
+            const r = Math.random() * sizeRange + 0.5;
+            ctx.beginPath();
+            ctx.arc(Math.random() * size, Math.random() * size, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    };
+    speckle(500, 0.10, 1.2); // fine grain
+    speckle(60, 0.08, 3);    // a few coarser imperfections
+
+    const texture = new THREE.CanvasTexture(canvas);
+    // Grain should look the same on every sticker regardless of its size
+    // in UV space, and tiling a small canvas is far cheaper than a huge one.
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    roughnessTextureCache = texture;
     return texture;
 }
 
@@ -213,6 +279,7 @@ export function rotateFace(clickedObject, dragVector, scene, camera, onRotationC
 
     setRotating(true);
     const newLogicalState = applyMove(move);
+    notifyMove(move);
     animateAndSync(move, newLogicalState, scene, () => {
         setRotating(false);
         if (onRotationComplete) onRotationComplete();
@@ -232,6 +299,7 @@ function playMoveSequence(moves, scene, onDone) {
         }
         const move = enrichMoveForAnimation(moves[index]);
         const newLogicalState = applyMove(move);
+        notifyMove(move);
         animateAndSync(move, newLogicalState, scene, () => executeNext(index + 1));
     }
     executeNext(0);
@@ -270,7 +338,6 @@ export function solveCube(scene) {
 
     playMoveSequence(solutionMoves, scene, () => {
         clearHistory();
-        setGameReady(false);
         setRotating(false);
         setButtonsEnabled(true);
         showToast(t('solvedByButton'));
@@ -289,12 +356,11 @@ export function scrambleCube(scene) {
     const cubeGroup = scene.getObjectByName("RubiksCube");
     syncVisualsToState(solvedState, cubeGroup);
 
-    const moves = generateScrambleMoves(20);
+    const moves = generateScrambleMoves(getScrambleLength());
     setRotating(true);
     setButtonsEnabled(false);
 
     playMoveSequence(moves, scene, () => {
-        setGameReady(true);
         setRotating(false);
         setButtonsEnabled(true);
     });
@@ -320,7 +386,6 @@ export function scrambleCubeInstantly(scrambleStr, scene) {
     });
     syncVisualsToState(state, cubeGroup);
     clearHistory();
-    setGameReady(false);
 }
 
 /**
@@ -366,7 +431,7 @@ export function previewFace(faceLetter, scene, camera) {
 
     if (previewAnimId) cancelAnimationFrame(previewAnimId);
     const startQuat = cubeGroup.quaternion.clone();
-    const duration = 350;
+    const duration = getDuration(350);
     let startTime = null;
     function step(ts) {
         if (!startTime) startTime = ts;
@@ -385,7 +450,7 @@ export function resetPreviewRotation(scene) {
     if (previewAnimId) cancelAnimationFrame(previewAnimId);
     const startQuat = cubeGroup.quaternion.clone();
     const targetQuat = new THREE.Quaternion();
-    const duration = 350;
+    const duration = getDuration(350);
     let startTime = null;
     function step(ts) {
         if (!startTime) startTime = ts;
@@ -440,6 +505,7 @@ export function createMovePlayer(moves, scene, options = {}) {
         animating = true;
         const move = enrichMoveForAnimation(moves[index]);
         const newLogicalState = applyMove(move);
+        notifyMove(move);
         animateAndSync(move, newLogicalState, scene, () => {
             animating = false;
             index += 1;
@@ -460,6 +526,7 @@ export function createMovePlayer(moves, scene, options = {}) {
         const inverseMove = { ...moves[index], dir: -moves[index].dir };
         const enriched = enrichMoveForAnimation(inverseMove);
         const newLogicalState = applyMove(enriched);
+        notifyMove(enriched);
         animateAndSync(enriched, newLogicalState, scene, () => {
             animating = false;
             notify();
@@ -516,7 +583,7 @@ function animateRotation(cubieNames, cubeGroup, scene, move, onComplete) {
     });
     const startQuaternion = new THREE.Quaternion();
     const endQuaternion = new THREE.Quaternion().setFromAxisAngle(move.rotationAxis, move.angle);
-    const duration = 150;
+    const duration = getDuration(150);
     let startTime = null;
     function step(timestamp) {
         if (!startTime) startTime = timestamp;

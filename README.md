@@ -29,31 +29,13 @@ If the colors you entered don't describe a physically valid cube, the solver wil
 
 ## 🧠 Own solver
 
-Solutions used to come from `cubejs`, a third-party (MIT-licensed - no
-license problem, but still someone else's code) Kociemba two-phase solver.
-At GeekNeuron's request, that's been replaced with an original,
-from-scratch layer-by-layer solver (`assets/js/own-solver.js` +
-`own-solver-engine.js`), written and tested for this app specifically:
-
-- The six base-move facelet permutation tables were *derived*, not copied
-  or memorized - generated from this app's own already-shipped
-  `cube-validator.js` tables and rotation convention, then cross-checked
-  against a live snapshot of the real Three.js engine after a real
-  scramble and confirmed to match exactly.
-- Cross and F2L (corners + edges) are solved by this app's own bounded,
-  heuristic-pruned search at solve time - not a lookup table, not borrowed
-  code.
-- OLL/PLL use a small number of "trigger" algorithms applied with original
-  case-detection logic. A couple of these triggers are also demonstrated
-  in this app's own tutorial (`tutorial.js`'s `lessonOllEdges`,
-  `lessonAPerm`, `lessonUbPerm`) - they're standard, publicly known cube
-  algorithms (the same category of public knowledge as a chess opening),
-  not another program's source code.
-- Verified correct on 90/90 random scrambles in testing (no known
-  failures). The trade-off for being fully original: solutions run
-  roughly 70-130 moves rather than Kociemba's ~20, and worst-case solve
-  time is seconds rather than milliseconds - both fine for "figure out my
-  physical cube" use, less fine for a speedcubing-grade solver.
+The "Solve My Physical Cube" solver is original, from-scratch code
+(`assets/js/own-solver.js` + `own-solver-engine.js`) rather than a
+third-party library - a layer-by-layer solver (cross → F2L → OLL → PLL)
+built and tested specifically for this app. The trade-off: solutions run
+roughly 70-130 moves rather than an optimal solver's ~20, and a solve can
+occasionally take up to ~30 seconds on harder scrambles rather than
+milliseconds - both fine for "figure out my physical cube" use.
 
 ## ⏱️ Real StackMat timer support (via microphone)
 
@@ -63,20 +45,6 @@ Toggle **"Use a StackMat timer (via microphone)"** inside the Speed Timer to rea
 - WCA-style inspection (if enabled) still runs in software and applies +2/DNF the moment you place both hands, exactly as with the manual timer.
 - Clear, friendly messages if the microphone is unsupported, blocked, or unavailable - it never just hangs.
 - The microphone is released the instant you turn the toggle off or close the modal, however you close it (button, Escape, or clicking outside).
-
-## 🩹 Fixed in this revision
-
-- **English-only UI:** removed the EN/FA language switcher and Persian translations at the user's request - one language, kept simple and fully maintained.
-- **Drag-to-turn direction bug:** the face-turn logic used to always spin the layer matching the clicked face's own axis, ignoring where exactly you dragged - so a vertical drag could turn a horizontal layer instead. Rewritten to pick the rotation axis from the actual on-screen drag direction (camera-aware), matching standard cube-app behavior.
-- **Dark theme not reaching the background:** a CSS custom property read via JavaScript from `<html>` instead of `<body>` meant the dark-theme override (defined on `body.dark-theme`) was never seen, so only the control panel changed color, not the 3D scene background.
-- **Cube corners are now actually rounded geometry** (not a flat cube with rounded-looking stickers) - built via a rounded-box vertex-inflation technique.
-
-- **Solve button now actually solves the cube.** Previously, scramble moves were never recorded to history and manual-move recording stopped after the first move, so Solve almost never returned the cube to a solved state. It now records every move since the last solve and reverses all of it.
-- **Live color settings** now recolor the cube immediately instead of showing an alert asking for a refresh.
-- Removed the unused `libs/solver.js` (a full cube-solving library that was bundled but never referenced).
-- Unified the rotation-angle math so the visual animation and the logical move always agree.
-- Buttons are now disabled while an animation is playing, and pop-up `alert()`s were replaced with non-blocking toast notifications.
-- Basic accessibility: `aria-label`/`role` on modals and icon buttons, Escape closes modals.
 
 ## 🛠️ How to Run
 

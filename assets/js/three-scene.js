@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 import { rotateFace } from './cube.js';
-import { isRotating, isSolved, isGameReady, setGameReady, clearHistory } from './cube-state.js';
+import { isRotating, isSolved, clearHistory } from './cube-state.js';
 import { startClock, stopClock, showToast, t } from './ui-handler.js';
 
 let scene, camera, renderer, controls;
@@ -140,11 +140,7 @@ function onPointerUp() {
     if (Math.abs(moveDirection.x) > dragThreshold || Math.abs(moveDirection.y) > dragThreshold) {
         rotateFace(intersectedObject, moveDirection.clone(), scene, camera, () => {
             controls.enabled = true;
-            
-            if (isGameReady()) {
-                startClock();
-                setGameReady(false);
-            }
+            startClock(); // no-ops if already running - times any manual turn, scrambled or not
 
             if (isSolved()) {
                 stopClock();

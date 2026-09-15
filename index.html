@@ -26,6 +26,7 @@
             <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
         </button>
     </div>
+    <div id="header-message" class="header-message" role="status" aria-live="polite"></div>
     <div id="scene-container"></div>
     <div class="controls-panel">
         <div id="timer" class="timer-box" title="Click to see history">00:00:00</div>
@@ -88,17 +89,66 @@
         <div class="modal-content">
             <span class="close-button" role="button" tabindex="0" aria-label="Close">&times;</span>
             <h2 id="settings-title" data-i18n="settingsTitle">Settings</h2>
-            <p data-i18n="settingsIntro">Choose the colors for the solved faces:</p>
-            <div class="color-settings"></div>
-            <div class="settings-io">
-                <button id="export-settings-btn" class="btn" data-i18n="exportSettings">Export Settings</button>
-                <button id="import-settings-btn" class="btn" data-i18n="importSettings">Import Settings</button>
-                <input type="file" id="import-settings-input" accept="application/json" hidden>
-            </div>
+
+            <section class="settings-section">
+                <h3 class="settings-section-title" data-i18n="settingsColorsTitle">Cube Colors</h3>
+                <p class="settings-hint" data-i18n="settingsIntro">Choose the colors for the solved faces:</p>
+                <div class="color-settings"></div>
+            </section>
+
+            <section class="settings-section">
+                <h3 class="settings-section-title" data-i18n="settingsPreferencesTitle">Preferences</h3>
+                <div class="settings-select-row">
+                    <span data-i18n="settingsAnimationSpeed">Animation speed</span>
+                    <select id="animation-speed-select">
+                        <option value="slow" data-i18n="speedSlow">Slower</option>
+                        <option value="normal" data-i18n="speedNormal">Normal</option>
+                        <option value="fast" data-i18n="speedFast">Faster</option>
+                        <option value="instant" data-i18n="speedInstant">Instant</option>
+                    </select>
+                </div>
+                <div class="settings-select-row">
+                    <span data-i18n="settingsScrambleLength">Scramble length</span>
+                    <select id="scramble-length-select">
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="25">25</option>
+                        <option value="30">30</option>
+                    </select>
+                </div>
+                <label class="settings-toggle-row">
+                    <span data-i18n="settingsShowTicker">Show live move list in footer</span>
+                    <input type="checkbox" id="move-ticker-toggle" checked>
+                </label>
+                <label class="settings-toggle-row">
+                    <span data-i18n="settingsSound">Move sound effect</span>
+                    <input type="checkbox" id="sound-toggle">
+                </label>
+            </section>
+
+            <section class="settings-section">
+                <h3 class="settings-section-title" data-i18n="settingsAccessibilityTitle">Accessibility</h3>
+                <p class="settings-hint" data-i18n="settingsColorblindHint">A palette chosen to stay distinguishable for the most common forms of color blindness.</p>
+                <div class="settings-io">
+                    <button id="colorblind-palette-btn" class="btn" data-i18n="useColorblindPalette">Use Colorblind-Friendly Colors</button>
+                    <button id="reset-colors-btn" class="btn" data-i18n="resetColors">Reset to Default Colors</button>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <h3 class="settings-section-title" data-i18n="settingsBackupTitle">Backup</h3>
+                <div class="settings-io">
+                    <button id="export-settings-btn" class="btn" data-i18n="exportSettings">Export Settings</button>
+                    <button id="import-settings-btn" class="btn" data-i18n="importSettings">Import Settings</button>
+                    <input type="file" id="import-settings-input" accept="application/json" hidden>
+                </div>
+            </section>
         </div>
     </div>
     <footer>
-        <p data-i18n="footer">Created by GeekNeuron</p>
+        <div id="move-ticker" class="move-ticker" aria-hidden="true">
+            <span class="ticker-placeholder" data-i18n="footer">Created by GeekNeuron</span>
+        </div>
     </footer>
 
     <!-- The single entry point for the application -->
