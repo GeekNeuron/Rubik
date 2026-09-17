@@ -27,6 +27,10 @@
         </button>
     </div>
     <div id="header-message" class="header-message" role="status" aria-live="polite"></div>
+    <div id="move-radar" class="move-radar" aria-hidden="true">
+        <div id="move-radar-svg" class="move-radar-svg"></div>
+        <div id="move-ticker" class="move-ticker"></div>
+    </div>
     <div id="scene-container"></div>
     <div class="controls-panel">
         <div id="timer" class="timer-box" title="Click to see history">00:00:00</div>
@@ -146,9 +150,7 @@
         </div>
     </div>
     <footer>
-        <div id="move-ticker" class="move-ticker" aria-hidden="true">
-            <span class="ticker-placeholder" data-i18n="footer">Created by GeekNeuron</span>
-        </div>
+        <p data-i18n="footer">Created by GeekNeuron</p>
     </footer>
 
     <!-- The single entry point for the application -->

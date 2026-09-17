@@ -6,7 +6,8 @@ import {
 } from './cube-state.js';
 import { resetClock, stopClock, setButtonsEnabled, showToast, t } from './ui-handler.js';
 import { standardTokenToEngineMoves } from './physical-solver.js';
-import { moveToNotation, pushTickerMove } from './move-ticker.js';
+import { moveToNotation, pushTickerMove, clearTicker } from './move-ticker.js';
+import { pulseAxis } from './move-radar.js';
 import { getAnimationSpeedMultiplier, getScrambleLength, isSoundEnabled } from './settings-state.js';
 import { playMoveSound } from './move-sound.js';
 
@@ -27,6 +28,7 @@ function getDuration(base) {
  * sound, so those two never drift out of sync with each other. */
 function notifyMove(move) {
     pushTickerMove(moveToNotation(move));
+    pulseAxis(move.axis);
     if (isSoundEnabled()) playMoveSound();
 }
 
@@ -352,6 +354,7 @@ export function scrambleCube(scene) {
     if (isRotating()) return;
 
     resetClock();
+    clearTicker();
     const solvedState = resetForScramble();
     const cubeGroup = scene.getObjectByName("RubiksCube");
     syncVisualsToState(solvedState, cubeGroup);
@@ -386,6 +389,7 @@ export function scrambleCubeInstantly(scrambleStr, scene) {
     });
     syncVisualsToState(state, cubeGroup);
     clearHistory();
+    clearTicker();
 }
 
 /**

@@ -1,12 +1,13 @@
-// A small live ticker of move notation (R, U', F2, ...) in the footer,
-// replacing the static "Created by" line - shows whatever is actually
-// happening to the cube right now, from any source (manual drag,
-// scramble, solve, tutorial or physical-solver playback).
+// A small live ticker of move notation (R, U', F2, ...) shown under the
+// move-radar corner widget - shows whatever is actually happening to the
+// cube right now, from any source (manual drag, scramble, solve, tutorial
+// or physical-solver playback), and clears whenever the app itself starts
+// a fresh attempt (new scramble, or reaching solved).
 
 import { isMoveTickerVisible } from './settings-state.js';
 
 let containerEl = null;
-const MAX_VISIBLE = 14;
+const MAX_VISIBLE = 8;
 
 export function initMoveTicker() {
     containerEl = document.getElementById('move-ticker');
@@ -36,9 +37,6 @@ export function moveToNotation({ axis, slice, dir }) {
 
 export function pushTickerMove(notation) {
     if (!containerEl) return;
-    const placeholder = containerEl.querySelector('.ticker-placeholder');
-    if (placeholder) placeholder.remove();
-
     const span = document.createElement('span');
     span.className = 'ticker-move';
     span.textContent = notation;
@@ -49,9 +47,12 @@ export function pushTickerMove(notation) {
     while (containerEl.children.length > MAX_VISIBLE) {
         containerEl.removeChild(containerEl.firstElementChild);
     }
-    containerEl.scrollLeft = containerEl.scrollWidth;
 }
 
+/** Clears the list - called wherever the app itself already resets the
+ * cube's own move history (new scramble, reaching solved), so this
+ * always matches "moves since the last fresh start" instead of drifting
+ * from the rest of the app's idea of what counts as a new attempt. */
 export function clearTicker() {
     if (containerEl) containerEl.innerHTML = '';
 }
