@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Initialize the UI elements (buttons, modals, theme)
         initUI();
         initMoveTicker();
-        initMoveRadar();
 
         // 2. Initialize the core logical state of the cube
         const logicalState = initState();
@@ -26,6 +25,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // 4. Create the visual representation based on the logical state
         const rubiksCubeGroup = createRubiksCubeGroup(logicalState);
         scene.add(rubiksCubeGroup);
+
+        // 4b. The move-radar widget reads live colors straight off the 3D
+        // cube, so it has to be initialized after that cube exists.
+        initMoveRadar();
 
         // 5. Initialize user interaction handlers
         initInteraction();

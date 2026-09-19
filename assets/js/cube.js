@@ -7,7 +7,7 @@ import {
 import { resetClock, stopClock, setButtonsEnabled, showToast, t } from './ui-handler.js';
 import { standardTokenToEngineMoves } from './physical-solver.js';
 import { moveToNotation, pushTickerMove, clearTicker } from './move-ticker.js';
-import { pulseAxis } from './move-radar.js';
+import { pulseMove, refreshAllFaces } from './move-radar.js';
 import { getAnimationSpeedMultiplier, getScrambleLength, isSoundEnabled } from './settings-state.js';
 import { playMoveSound } from './move-sound.js';
 
@@ -28,7 +28,7 @@ function getDuration(base) {
  * sound, so those two never drift out of sync with each other. */
 function notifyMove(move) {
     pushTickerMove(moveToNotation(move));
-    pulseAxis(move.axis);
+    pulseMove(move);
     if (isSoundEnabled()) playMoveSound();
 }
 
@@ -411,8 +411,63 @@ export function updateCubeColors() {
             materials[i].dispose();
         });
     });
+    refreshAllFaces();
 }
 
+// World direction + material-slot lookup for reading live face colors below.
+// Material slot order matches buildCubieMaterials(): [+X, -X, +Y, -Y, +Z, -Z].
+const FACE_WORLD_DIR = {
+    U: new THREE.Vector3(0, 1, 0), D: new THREE.Vector3(0, -1, 0),
+    R: new THREE.Vector3(1, 0, 0), L: new THREE.Vector3(-1, 0, 0),
+    F: new THREE.Vector3(0, 0, 1), B: new THREE.Vector3(0, 0, -1),
+};
+const LOCAL_AXES = [
+    new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0),
+    new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0),
+    new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1),
+];
+
+/**
+ * Reads the CURRENT (post-rotation) sticker colors of one face directly off
+ * the live 3D pieces - not from any separate logical model - so it's
+ * always exactly what's actually showing on screen, including mid-solve or
+ * mid-scramble states. Returns a 3x3 array of CSS hex color strings (or
+ * null for a slot that isn't resolvable, which shouldn't normally happen).
+ */
+export function getFaceColorGrid(face) {
+    if (!cachedCubeGroup) return null;
+    const targetDir = FACE_WORLD_DIR[face];
+    if (!targetDir) return null;
+
+    const grid = [[null, null, null], [null, null, null], [null, null, null]];
+    const tmp = new THREE.Vector3();
+
+    cachedCubeGroup.children.forEach(cubie => {
+        const pos = cubie.position;
+        // Only the 9 pieces whose CURRENT position sits on this face's outer layer.
+        const onFace = Math.round(targetDir.x !== 0 ? pos.x * targetDir.x : (targetDir.y !== 0 ? pos.y * targetDir.y : pos.z * targetDir.z));
+        if (onFace !== 1) return;
+
+        // Which of the piece's 6 local faces currently points along targetDir?
+        let bestIdx = -1, bestDot = -Infinity;
+        LOCAL_AXES.forEach((axis, i) => {
+            tmp.copy(axis).applyQuaternion(cubie.quaternion);
+            const dot = tmp.dot(targetDir);
+            if (dot > bestDot) { bestDot = dot; bestIdx = i; }
+        });
+        const color = `#${cubie.material[bestIdx].color.getHexString()}`;
+
+        // Row/col within the 3x3 grid - an internally-consistent reading
+        // order (not tied to any particular real-world viewing angle).
+        const x = Math.round(pos.x), y = Math.round(pos.y), z = Math.round(pos.z);
+        let row, col;
+        if (face === 'U' || face === 'D') { row = z + 1; col = x + 1; }
+        else if (face === 'R' || face === 'L') { row = 1 - y; col = z + 1; }
+        else { row = 1 - y; col = x + 1; } // F, B
+        grid[row][col] = color;
+    });
+    return grid;
+}
 /**
  * Smoothly rotates the whole cube (not the pieces - just the group, so it
  * doesn't interfere with move logic) so the given face points toward the
